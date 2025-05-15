@@ -18,7 +18,7 @@ client_twilio = Client(twilio_sid, twilio_token)
 # Função para obter resposta do GPT
 def get_gpt_response(message):
     response = client_openai.chat.completions.create(
-        model="gpt-4",
+        model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": "Você é um assistente inteligente que responde em português."},
             {"role": "user", "content": message}
