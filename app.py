@@ -1,4 +1,5 @@
 import os
+import pandas as pd
 from flask import Flask, request
 from twilio.rest import Client
 from openai import OpenAI
@@ -15,15 +16,29 @@ twilio_number = os.environ.get("TWILIO_WHATSAPP_NUMBER")
 client_openai = OpenAI(api_key=openai_api_key)
 client_twilio = Client(twilio_sid, twilio_token)
 
-# Função para obter resposta do GPT
+# Carrega dados dos produtos do CSV
+def carregar_produtos():
+    try:
+        df = pd.read_csv("produtos_semente_viva.csv")
+        produtos = []
+        for _, row in df.iterrows():
+            produto = f"{row['Nome']} - {row['Categoria']} - R$ {row['Preço']} - {row['Descrição']}"
+            produtos.append(produto)
+        return "\n".join(produtos)
+    except Exception as e:
+        return "Erro ao carregar produtos: " + str(e)
+
+produtos_contexto = carregar_produtos()
+
+# Função para obter resposta do GPT com os produtos
 def get_gpt_response(message):
     response = client_openai.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
-            {"role": "system", "content": "Você é um assistente inteligente que responde em português."},
+            {"role": "system", "content": "Você é um assistente inteligente de vendas que responde sempre em português. Aqui estão os produtos disponíveis:\n" + produtos_contexto},
             {"role": "user", "content": message}
         ],
-        max_tokens=200,
+        max_tokens=500,
         temperature=0.7
     )
     return response.choices[0].message.content.strip()
