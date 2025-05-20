@@ -1,3 +1,5 @@
-flask
-openai
-twilio
+Flask==2.3.3
+twilio==8.10.0
+openai==1.14.3
+pandas==2.2.2
+python-dotenv==1.0.1
