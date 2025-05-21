@@ -16,40 +16,59 @@ twilio_number = os.environ.get("TWILIO_WHATSAPP_NUMBER")
 client_openai = OpenAI(api_key=openai_api_key)
 client_twilio = Client(twilio_sid, twilio_token)
 
-# Função para buscar produtos relacionados à pergunta
-def filtrar_produtos(mensagem_usuario):
-    try:
-        df = pd.read_csv("produtos_semente_viva.csv")
-        mensagem_lower = mensagem_usuario.lower()
-        resultados = df[df.apply(lambda row: mensagem_lower in row.astype(str).str.lower().to_string(), axis=1)]
-        if resultados.empty:
-            return "Nenhum produto encontrado relacionado à sua busca."
-        produtos = []
+# Carrega produtos e limpa texto
+def carregar_produtos():
+    df = pd.read_csv("produtos_semente_viva.csv")
+    df.fillna("", inplace=True)
+    df["nome"] = df["Nome"].str.lower()
+    return df
+
+produtos_df = carregar_produtos()
+
+# Busca por palavras-chave no CSV
+def buscar_produto_csv(mensagem):
+    mensagem_lower = mensagem.lower()
+    resultados = produtos_df[produtos_df["nome"].str.contains(mensagem_lower)]
+    
+    if not resultados.empty:
+        respostas = []
         for _, row in resultados.iterrows():
-            produto = f"{row['Nome']} - {row['Categoria']} - R$ {row['Preço']} - {row['Descrição']}"
-            produtos.append(produto)
-        return "\n".join(produtos)
-    except Exception as e:
-        return f"Erro ao buscar produtos: {str(e)}"
+            resposta = f"{row['Nome']} - R$ {row['Preço']}\n{row['Descrição']}"
+            respostas.append(resposta)
+        return "\n\n".join(respostas)
+    return None
 
-# Função para gerar resposta do GPT com base nos produtos filtrados
-def get_gpt_response(message):
-    produtos_relacionados = filtrar_produtos(message)
-    prompt_sistema = (
-        "Você é um assistente de vendas inteligente que responde sempre em português. "
-        "Use os produtos abaixo para ajudar o cliente:\n\n" + produtos_relacionados
-    )
+# GPT com contexto geral
+def get_gpt_response(mensagem, contexto_produtos):
+    prompt = f"""
+Você é um assistente de vendas de uma loja chamada Semente Viva.
+Use o seguinte catálogo para responder perguntas dos clientes de forma natural e clara.
 
+Catálogo de produtos:
+{contexto_produtos}
+
+Mensagem do cliente: {mensagem}
+    """
     response = client_openai.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
-            {"role": "system", "content": prompt_sistema},
-            {"role": "user", "content": message}
+            {"role": "system", "content": "Responda sempre em português com educação e clareza."},
+            {"role": "user", "content": prompt}
         ],
         max_tokens=500,
         temperature=0.7
     )
     return response.choices[0].message.content.strip()
+
+# Formata o catálogo para contexto do GPT
+def gerar_contexto_csv():
+    contextos = []
+    for _, row in produtos_df.iterrows():
+        contexto = f"{row['Nome']} - R$ {row['Preço']} - {row['Descrição']}"
+        contextos.append(contexto)
+    return "\n".join(contextos)
+
+contexto_produtos = gerar_contexto_csv()
 
 # Webhook do WhatsApp
 @app.route("/whatsapp", methods=["POST"])
@@ -57,16 +76,20 @@ def whatsapp_webhook():
     sender_number = request.form.get("From")
     user_message = request.form.get("Body")
 
-    response_text = get_gpt_response(user_message)
+    resposta_csv = buscar_produto_csv(user_message)
+    
+    if resposta_csv:
+        resposta_final = resposta_csv
+    else:
+        resposta_final = get_gpt_response(user_message, contexto_produtos)
 
     client_twilio.messages.create(
         from_=twilio_number,
         to=sender_number,
-        body=response_text
+        body=resposta_final
     )
 
     return "OK", 200
 
-# Inicialização
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
