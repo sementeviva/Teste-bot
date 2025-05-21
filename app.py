@@ -22,10 +22,13 @@ def carregar_produtos():
     df.columns = [col.strip().lower() for col in df.columns]  # Normaliza os nomes das colunas
     df.fillna("", inplace=True)  # Substitui NaN por strings vazias
     
-    if "nome" in df.columns:
-        df["nome"] = df["nome"].astype(str).str.lower()  # Converte para string e minúsculas
-    else:
-        print("Coluna 'nome' não encontrada.")
+    # Verificação se as colunas necessárias estão presentes
+    colunas_necessarias = ["nome", "preco", "descricao"]
+    for coluna in colunas_necessarias:
+        if coluna not in df.columns:
+            raise KeyError(f"Coluna '{coluna}' não encontrada no CSV.")
+    
+    df["nome"] = df["nome"].astype(str).str.lower()  # Converte para string e minúsculas
     
     return df
 
@@ -39,7 +42,7 @@ def buscar_produto_csv(mensagem):
     if not resultados.empty:
         respostas = []
         for _, row in resultados.iterrows():
-            resposta = f"{row['nome'].capitalize()} - R$ {row['preço']}\n{row['descrição']}"
+            resposta = f"{row['nome'].capitalize()} - R$ {row['preco']}\n{row['descricao']}"
             respostas.append(resposta)
         return "\n\n".join(respostas)
     return None
@@ -70,7 +73,7 @@ Mensagem do cliente: {mensagem}
 def gerar_contexto_csv():
     contextos = []
     for _, row in produtos_df.iterrows():
-        contexto = f"{row['nome'].capitalize()} - R$ {row['preço']} - {row['descrição']}"
+        contexto = f"{row['nome'].capitalize()} - R$ {row['preco']} - {row['descricao']}"
         contextos.append(contexto)
     return "\n".join(contextos)
 
