@@ -19,8 +19,14 @@ client_twilio = Client(twilio_sid, twilio_token)
 # Carrega produtos e limpa texto
 def carregar_produtos():
     df = pd.read_csv("produtos_semente_viva.csv")
+    df.columns = [col.strip().lower() for col in df.columns]  # Normaliza os nomes das colunas
     df.fillna("", inplace=True)
-    df["nome"] = df["Nome"].str.lower()
+    
+    if "nome" in df.columns:
+        df["nome"] = df["nome"].str.lower()
+    else:
+        print("Coluna 'nome' não encontrada.")
+    
     return df
 
 produtos_df = carregar_produtos()
@@ -33,7 +39,7 @@ def buscar_produto_csv(mensagem):
     if not resultados.empty:
         respostas = []
         for _, row in resultados.iterrows():
-            resposta = f"{row['Nome']} - R$ {row['Preço']}\n{row['Descrição']}"
+            resposta = f"{row['nome'].capitalize()} - R$ {row['preço']}\n{row['descrição']}"
             respostas.append(resposta)
         return "\n\n".join(respostas)
     return None
@@ -64,7 +70,7 @@ Mensagem do cliente: {mensagem}
 def gerar_contexto_csv():
     contextos = []
     for _, row in produtos_df.iterrows():
-        contexto = f"{row['Nome']} - R$ {row['Preço']} - {row['Descrição']}"
+        contexto = f"{row['nome'].capitalize()} - R$ {row['preço']} - {row['descrição']}"
         contextos.append(contexto)
     return "\n".join(contextos)
 
