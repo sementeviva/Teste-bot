@@ -20,10 +20,10 @@ client_twilio = Client(twilio_sid, twilio_token)
 def carregar_produtos():
     df = pd.read_csv("produtos_semente_viva.csv")
     df.columns = [col.strip().lower() for col in df.columns]  # Normaliza os nomes das colunas
-    df.fillna("", inplace=True)
+    df.fillna("", inplace=True)  # Substitui NaN por strings vazias
     
     if "nome" in df.columns:
-        df["nome"] = df["nome"].str.lower()
+        df["nome"] = df["nome"].astype(str).str.lower()  # Converte para string e minúsculas
     else:
         print("Coluna 'nome' não encontrada.")
     
