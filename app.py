@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 import psycopg2
-from flask import Flask, request
+from flask import Flask, request, render_template
 from twilio.rest import Client
 from openai import OpenAI
 
@@ -17,6 +17,7 @@ from routes.edit_produtos import edit_produtos_bp
 app.register_blueprint(edit_produtos_bp)
 from routes.ver_produtos import ver_produtos_bp
 app.register_blueprint(ver_produtos_bp)
+
 # Chaves de ambiente
 openai_api_key = os.environ.get("OPENAI_API_KEY")
 twilio_sid = os.environ.get("TWILIO_ACCOUNT_SID")
@@ -124,28 +125,9 @@ def whatsapp_webhook():
 
     return "OK", 200
 
-from flask import render_template
-
 @app.route("/")
 def home():
     return render_template("index.html")
-
-from flask import render_template
-
-@app.route("/")
-def home():
-    return render_template("index.html")
-
-@app.route("/ver-produtos")
-def ver_produtos():
-    from utils.db import conectar_db
-    conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT nome, descricao, preco, categoria FROM produtos")
-    produtos = cursor.fetchall()
-    conn.close()
-    return render_template("ver_produtos.html", produtos=produtos)
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
