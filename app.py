@@ -95,7 +95,7 @@ Mensagem do cliente: {mensagem}
 # Webhook do WhatsApp
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp_webhook():
-    sender_number = request.form.get("From").replace("whatsapp:", "")
+    sender_number = request.form.get("From")  # Mantém 'whatsapp:+5511999999999'
     user_message = request.form.get("Body").strip().lower()
 
     if user_message in ["menu", "ver produtos", "produtos"]:
@@ -118,8 +118,8 @@ def whatsapp_webhook():
             resposta_final = get_gpt_response(user_message, contexto_produtos)
 
     client_twilio.messages.create(
-        from_=twilio_number,
-        to=sender_number,
+        from_=twilio_number,   # Deve estar no formato: whatsapp:+55...
+        to=sender_number,      # Também no formato: whatsapp:+55...
         body=resposta_final
     )
 
