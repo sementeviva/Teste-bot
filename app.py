@@ -130,5 +130,22 @@ from flask import render_template
 def home():
     return render_template("index.html")
 
+from flask import render_template
+
+@app.route("/")
+def home():
+    return render_template("index.html")
+
+@app.route("/ver-produtos")
+def ver_produtos():
+    from utils.db import conectar_db
+    conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT nome, descricao, preco, categoria FROM produtos")
+    produtos = cursor.fetchall()
+    conn.close()
+    return render_template("ver_produtos.html", produtos=produtos)
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
