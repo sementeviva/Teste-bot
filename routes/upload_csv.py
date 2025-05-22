@@ -1,4 +1,10 @@
-import os import csv import io import psycopg2 import pandas as pd from flask import Blueprint, request, render_template, redirect, url_for, flash from werkzeug.utils import secure_filename
+import os
+import csv
+import io
+import psycopg2
+import pandas as pd
+from flask import Blueprint, request, render_template, redirect, url_for, flash
+from werkzeug.utils import secure_filename
 
 upload_csv_bp = Blueprint('upload_csv', name)
 
