@@ -10,7 +10,8 @@ app.secret_key = "chave_secreta_upload"  # necessário para flash messages
 # Blueprints (mova para antes do app.run)
 from routes.upload_csv import upload_csv_bp
 app.register_blueprint(upload_csv_bp)
-
+from routes.edit_produtos import edit_produtos_bp
+app.register_blueprint(edit_produtos_bp)
 # Chaves de ambiente
 openai_api_key = os.environ.get("OPENAI_API_KEY")
 twilio_sid = os.environ.get("TWILIO_ACCOUNT_SID")
