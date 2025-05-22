@@ -1,6 +1,6 @@
-# app.py
 import os
 import pandas as pd
+import psycopg2
 from flask import Flask, request
 from twilio.rest import Client
 from openai import OpenAI
@@ -25,23 +25,29 @@ twilio_number = os.environ.get("TWILIO_WHATSAPP_NUMBER")
 client_openai = OpenAI(api_key=openai_api_key)
 client_twilio = Client(twilio_sid, twilio_token)
 
-# Carrega produtos CSV
+# Carrega produtos do banco de dados
+def carregar_produtos_db():
+    try:
+        conn = psycopg2.connect(
+            host=os.environ.get('DB_HOST'),
+            database=os.environ.get('DB_NAME'),
+            user=os.environ.get('DB_USER'),
+            password=os.environ.get('DB_PASSWORD'),
+            port=os.environ.get('DB_PORT', 5432)
+        )
+        df = pd.read_sql("SELECT * FROM produtos", conn)
+        df.columns = [col.strip().lower() for col in df.columns]
+        df.fillna("", inplace=True)
+        df["nome"] = df["nome"].astype(str).str.lower()
+        conn.close()
+        return df
+    except Exception as e:
+        print(f"Erro ao carregar produtos do banco: {e}")
+        return pd.DataFrame(columns=["nome", "descricao", "preco", "categoria"])
 
-def carregar_produtos():
-    df = pd.read_csv("produtos_semente_viva.csv")
-    df.columns = [col.strip().lower() for col in df.columns]
-    df.fillna("", inplace=True)
-    colunas_necessarias = ["nome", "preco", "descricao"]
-    for coluna in colunas_necessarias:
-        if coluna not in df.columns:
-            raise KeyError(f"Coluna '{coluna}' não encontrada no CSV.")
-    df["nome"] = df["nome"].astype(str).str.lower()
-    return df
+produtos_df = carregar_produtos_db()
 
-produtos_df = carregar_produtos()
-
-# Busca CSV
-
+# Busca produto no DataFrame
 def buscar_produto_csv(mensagem):
     mensagem_lower = mensagem.lower()
     resultados = produtos_df[produtos_df["nome"].str.contains(mensagem_lower)]
@@ -53,8 +59,7 @@ def buscar_produto_csv(mensagem):
         return "\n\n".join(respostas)
     return None
 
-# Contexto GPT
-
+# Gera contexto para o GPT
 def gerar_contexto_csv():
     contextos = []
     for _, row in produtos_df.iterrows():
@@ -63,7 +68,6 @@ def gerar_contexto_csv():
     return "\n".join(contextos)
 
 contexto_produtos = gerar_contexto_csv()
-
 
 def get_gpt_response(mensagem, contexto_produtos):
     prompt = f"""
@@ -86,7 +90,7 @@ Mensagem do cliente: {mensagem}
     )
     return response.choices[0].message.content.strip()
 
-
+# Webhook do WhatsApp
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp_webhook():
     sender_number = request.form.get("From").replace("whatsapp:", "")
