@@ -1,7 +1,9 @@
 import os
 import csv
 import psycopg2
+import pandas as pd
 from flask import Blueprint, request, render_template, redirect, url_for, flash
+from werkzeug.utils import secure_filename
 
 upload_csv_bp = Blueprint('upload_csv', __name__)
 
@@ -19,6 +21,9 @@ def upload_csv():
             flash('Nenhum arquivo enviado.')
             return redirect(request.url)
 
+        filename = secure_filename(arquivo.filename)
+        extensao = filename.rsplit('.', 1)[1].lower()
+
         try:
             conn = psycopg2.connect(
                 host=DB_HOST,
@@ -28,13 +33,27 @@ def upload_csv():
                 port=DB_PORT
             )
             cur = conn.cursor()
-            csvfile = arquivo.stream.read().decode('utf-8').splitlines()
-            leitor = csv.DictReader(csvfile)
-            for linha in leitor:
-                cur.execute("""
-                    INSERT INTO produtos (nome, descricao, preco)
-                    VALUES (%s, %s, %s)
-                """, (linha['nome'], linha['descricao'], linha['preco']))
+
+            if extensao == 'csv':
+                csvfile = arquivo.stream.read().decode('utf-8').splitlines()
+                leitor = csv.DictReader(csvfile)
+                for linha in leitor:
+                    cur.execute("""
+                        INSERT INTO produtos (nome, descricao, preco)
+                        VALUES (%s, %s, %s)
+                    """, (linha['nome'], linha['descricao'], linha['preco']))
+            elif extensao == 'xlsx':
+                df = pd.read_excel(arquivo)
+                df.fillna('', inplace=True)
+                for _, row in df.iterrows():
+                    cur.execute("""
+                        INSERT INTO produtos (nome, descricao, preco)
+                        VALUES (%s, %s, %s)
+                    """, (row['nome'], row['descricao'], row['preco']))
+            else:
+                flash('Tipo de arquivo não suportado.')
+                return redirect(request.url)
+
             conn.commit()
             cur.close()
             conn.close()
