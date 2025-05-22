@@ -5,6 +5,11 @@ from twilio.rest import Client
 from openai import OpenAI
 
 app = Flask(__name__)
+app.secret_key = "chave_secreta_upload"  # necessário para flash messages
+
+# Blueprints (mova para antes do app.run)
+from routes.upload_csv import upload_csv_bp
+app.register_blueprint(upload_csv_bp)
 
 # Chaves de ambiente
 openai_api_key = os.environ.get("OPENAI_API_KEY")
@@ -16,29 +21,24 @@ twilio_number = os.environ.get("TWILIO_WHATSAPP_NUMBER")
 client_openai = OpenAI(api_key=openai_api_key)
 client_twilio = Client(twilio_sid, twilio_token)
 
-# Carrega produtos e limpa texto
+# Carrega produtos
 def carregar_produtos():
     df = pd.read_csv("produtos_semente_viva.csv")
-    df.columns = [col.strip().lower() for col in df.columns]  # Normaliza os nomes das colunas
-    df.fillna("", inplace=True)  # Substitui NaN por strings vazias
-    
-    # Verificação se as colunas necessárias estão presentes
+    df.columns = [col.strip().lower() for col in df.columns]
+    df.fillna("", inplace=True)
     colunas_necessarias = ["nome", "preco", "descricao"]
     for coluna in colunas_necessarias:
         if coluna not in df.columns:
             raise KeyError(f"Coluna '{coluna}' não encontrada no CSV.")
-    
-    df["nome"] = df["nome"].astype(str).str.lower()  # Converte para string e minúsculas
-    
+    df["nome"] = df["nome"].astype(str).str.lower()
     return df
 
 produtos_df = carregar_produtos()
 
-# Busca por palavras-chave no CSV
+# Busca por palavra-chave
 def buscar_produto_csv(mensagem):
     mensagem_lower = mensagem.lower()
     resultados = produtos_df[produtos_df["nome"].str.contains(mensagem_lower)]
-    
     if not resultados.empty:
         respostas = []
         for _, row in resultados.iterrows():
@@ -47,7 +47,16 @@ def buscar_produto_csv(mensagem):
         return "\n\n".join(respostas)
     return None
 
-# GPT com contexto geral
+# Contexto GPT
+def gerar_contexto_csv():
+    contextos = []
+    for _, row in produtos_df.iterrows():
+        contexto = f"{row['nome'].capitalize()} - R$ {row['preco']} - {row['descricao']}"
+        contextos.append(contexto)
+    return "\n".join(contextos)
+
+contexto_produtos = gerar_contexto_csv()
+
 def get_gpt_response(mensagem, contexto_produtos):
     prompt = f"""
 Você é um assistente de vendas de uma loja chamada Semente Viva.
@@ -69,17 +78,6 @@ Mensagem do cliente: {mensagem}
     )
     return response.choices[0].message.content.strip()
 
-# Formata o catálogo para contexto do GPT
-def gerar_contexto_csv():
-    contextos = []
-    for _, row in produtos_df.iterrows():
-        contexto = f"{row['nome'].capitalize()} - R$ {row['preco']} - {row['descricao']}"
-        contextos.append(contexto)
-    return "\n".join(contextos)
-
-contexto_produtos = gerar_contexto_csv()
-
-# Webhook do WhatsApp
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp_webhook():
     sender_number = request.form.get("From")
@@ -102,5 +100,3 @@ def whatsapp_webhook():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-from routes.upload_csv import upload_csv_bp
-app.register_blueprint(upload_csv_bp)
