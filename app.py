@@ -1,28 +1,32 @@
+# app.py
 import os
 import pandas as pd
 from flask import Flask, request
 from twilio.rest import Client
 from openai import OpenAI
 
-app = Flask(__name__)
-app.secret_key = "chave_secreta_upload"  # necessário para flash messages
+from utils.fluxo_vendas import listar_categorias, listar_produtos_categoria, adicionar_ao_carrinho, ver_carrinho
 
-# Blueprints (mova para antes do app.run)
+app = Flask(__name__)
+app.secret_key = "chave_secreta_upload"
+
+# Blueprints
 from routes.upload_csv import upload_csv_bp
 app.register_blueprint(upload_csv_bp)
 from routes.edit_produtos import edit_produtos_bp
 app.register_blueprint(edit_produtos_bp)
+
 # Chaves de ambiente
 openai_api_key = os.environ.get("OPENAI_API_KEY")
 twilio_sid = os.environ.get("TWILIO_ACCOUNT_SID")
 twilio_token = os.environ.get("TWILIO_AUTH_TOKEN")
 twilio_number = os.environ.get("TWILIO_WHATSAPP_NUMBER")
 
-# Clientes
 client_openai = OpenAI(api_key=openai_api_key)
 client_twilio = Client(twilio_sid, twilio_token)
 
-# Carrega produtos
+# Carrega produtos CSV
+
 def carregar_produtos():
     df = pd.read_csv("produtos_semente_viva.csv")
     df.columns = [col.strip().lower() for col in df.columns]
@@ -36,7 +40,8 @@ def carregar_produtos():
 
 produtos_df = carregar_produtos()
 
-# Busca por palavra-chave
+# Busca CSV
+
 def buscar_produto_csv(mensagem):
     mensagem_lower = mensagem.lower()
     resultados = produtos_df[produtos_df["nome"].str.contains(mensagem_lower)]
@@ -49,6 +54,7 @@ def buscar_produto_csv(mensagem):
     return None
 
 # Contexto GPT
+
 def gerar_contexto_csv():
     contextos = []
     for _, row in produtos_df.iterrows():
@@ -57,6 +63,7 @@ def gerar_contexto_csv():
     return "\n".join(contextos)
 
 contexto_produtos = gerar_contexto_csv()
+
 
 def get_gpt_response(mensagem, contexto_produtos):
     prompt = f"""
@@ -79,17 +86,30 @@ Mensagem do cliente: {mensagem}
     )
     return response.choices[0].message.content.strip()
 
+
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp_webhook():
-    sender_number = request.form.get("From")
-    user_message = request.form.get("Body")
+    sender_number = request.form.get("From").replace("whatsapp:", "")
+    user_message = request.form.get("Body").strip().lower()
 
-    resposta_csv = buscar_produto_csv(user_message)
-    
-    if resposta_csv:
-        resposta_final = resposta_csv
+    if user_message in ["menu", "ver produtos", "produtos"]:
+        resposta_final = listar_categorias()
+
+    elif user_message in ["carrinho", "ver carrinho"]:
+        resposta_final = ver_carrinho(sender_number)
+
+    elif user_message.isdigit():
+        resposta_final = adicionar_ao_carrinho(sender_number, int(user_message))
+
+    elif user_message in ["chá", "chás", "suplementos", "óleos", "veganos"]:
+        resposta_final = listar_produtos_categoria(user_message)
+
     else:
-        resposta_final = get_gpt_response(user_message, contexto_produtos)
+        resposta_csv = buscar_produto_csv(user_message)
+        if resposta_csv:
+            resposta_final = resposta_csv
+        else:
+            resposta_final = get_gpt_response(user_message, contexto_produtos)
 
     client_twilio.messages.create(
         from_=twilio_number,
