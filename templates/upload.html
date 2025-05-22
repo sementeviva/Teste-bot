@@ -1,15 +1,76 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Upload de Arquivo</title>
+    <title>Upload de Produtos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 40px;
+            background-color: #f2f2f2;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: auto;
+            padding: 30px;
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 25px;
+            color: #2c3e50;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 15px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #219150;
+        }
+
+        .flash-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 15px;
+        }
+    </style>
 </head>
 <body>
-    <h2>Upload de Arquivo de Produtos</h2>
-    <form action="/upload" method="post" enctype="multipart/form-data">
-        <label for="file">Selecione um arquivo (.csv ou .xlsx):</label><br><br>
-        <input type="file" name="file" accept=".csv,.xlsx" required><br><br>
-        <input type="submit" value="Enviar">
+<div class="container">
+    <h2>Upload de Produtos</h2>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for msg in messages %}
+                <div class="flash-message">{{ msg }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" enctype="multipart/form-data">
+        <input type="file" name="csv_file" accept=".csv, .xlsx" required>
+        <button type="submit">Enviar</button>
     </form>
+</div>
 </body>
 </html>
