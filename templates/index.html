@@ -1,19 +1,41 @@
-<!-- templates/index.html -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Semente Viva - Painel</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 50px; text-align: center; }
-        h1 { color: #2E8B57; }
-        a { display: block; margin: 20px; font-size: 1.2em; text-decoration: none; color: #006400; }
-        a:hover { text-decoration: underline; }
-    </style>
+    <title>Painel | Semente Viva</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
 </head>
-<body>
-    <h1>Bem-vindo ao Painel da Semente Viva</h1>
-    <a href="/upload">Fazer upload de CSV</a>
-    <a href="/ver-produtos">Ver produtos cadastrados</a>
+<body class="bg-light">
+    <div class="container py-5">
+        <div class="text-center mb-5">
+            <h1 class="text-success">Painel Administrativo - Semente Viva</h1>
+            <p class="lead">Gerencie seus produtos e conversas com facilidade</p>
+        </div>
+
+        <div class="row justify-content-center">
+            <div class="col-md-4">
+                <a href="/upload" class="btn btn-outline-success w-100 mb-3">
+                    <i class="bi bi-upload me-2"></i> Fazer upload de CSV
+                </a>
+            </div>
+            <div class="col-md-4">
+                <a href="/ver-produtos" class="btn btn-outline-success w-100 mb-3">
+                    <i class="bi bi-box-seam me-2"></i> Ver produtos cadastrados
+                </a>
+            </div>
+            <div class="col-md-4">
+                <a href="/conversas" class="btn btn-outline-success w-100 mb-3">
+                    <i class="bi bi-chat-dots me-2"></i> Visualizar histórico de conversas
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <footer class="text-center mt-5 text-muted">
+        <small>Semente Viva © 2025</small>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
