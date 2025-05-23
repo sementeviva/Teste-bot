@@ -6,6 +6,7 @@ from twilio.rest import Client
 from openai import OpenAI
 
 from utils.fluxo_vendas import listar_categorias, listar_produtos_categoria, adicionar_ao_carrinho, ver_carrinho
+from utils.fluxo_atendimento import iniciar_cadastro, processar_cadastro
 
 app = Flask(__name__)
 app.secret_key = "chave_secreta_upload"
@@ -31,11 +32,11 @@ client_twilio = Client(twilio_sid, twilio_token)
 def carregar_produtos_db():
     try:
         conn = psycopg2.connect(
-            host=os.environ.get('DB_HOST'),
-            database=os.environ.get('DB_NAME'),
-            user=os.environ.get('DB_USER'),
-            password=os.environ.get('DB_PASSWORD'),
-            port=os.environ.get('DB_PORT', 5432)
+            host=os.environ.get('db_host'),
+            database=os.environ.get('db_name'),
+            user=os.environ.get('db_user'),
+            password=os.environ.get('db_password'),
+            port=os.environ.get('db_port', 5432)
         )
         df = pd.read_sql("SELECT * FROM produtos", conn)
         df.columns = [col.strip().lower() for col in df.columns]
@@ -49,7 +50,6 @@ def carregar_produtos_db():
 
 produtos_df = carregar_produtos_db()
 
-# Busca produto no DataFrame
 def buscar_produto_csv(mensagem):
     mensagem_lower = mensagem.lower()
     resultados = produtos_df[produtos_df["nome"].str.contains(mensagem_lower)]
@@ -61,7 +61,6 @@ def buscar_produto_csv(mensagem):
         return "\n\n".join(respostas)
     return None
 
-# Gera contexto para o GPT
 def gerar_contexto_csv():
     contextos = []
     for _, row in produtos_df.iterrows():
@@ -92,10 +91,28 @@ Mensagem do cliente: {mensagem}
     )
     return response.choices[0].message.content.strip()
 
+# Verifica se o usuário está no meio de um fluxo de cadastro
+def verificar_fluxo_ativo(numero):
+    try:
+        conn = psycopg2.connect(
+            host=os.environ.get('db_host'),
+            database=os.environ.get('db_name'),
+            user=os.environ.get('db_user'),
+            password=os.environ.get('db_password'),
+            port=os.environ.get('db_port', 5432)
+        )
+        cur = conn.cursor()
+        cur.execute("SELECT etapa FROM clientes_fluxo WHERE telefone = %s", (numero,))
+        resultado = cur.fetchone()
+        conn.close()
+        return resultado is not None
+    except:
+        return False
+
 # Webhook do WhatsApp
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp_webhook():
-    sender_number = request.form.get("From")  # Mantém 'whatsapp:+5511999999999'
+    sender_number = request.form.get("From").replace("whatsapp:", "")
     user_message = request.form.get("Body").strip().lower()
 
     if user_message in ["menu", "ver produtos", "produtos"]:
@@ -103,6 +120,12 @@ def whatsapp_webhook():
 
     elif user_message in ["carrinho", "ver carrinho"]:
         resposta_final = ver_carrinho(sender_number)
+
+    elif user_message in ["cadastro", "quero me cadastrar"]:
+        resposta_final = iniciar_cadastro(sender_number)
+
+    elif verificar_fluxo_ativo(sender_number):
+        resposta_final = processar_cadastro(sender_number, user_message)
 
     elif user_message.isdigit():
         resposta_final = adicionar_ao_carrinho(sender_number, int(user_message))
@@ -118,8 +141,8 @@ def whatsapp_webhook():
             resposta_final = get_gpt_response(user_message, contexto_produtos)
 
     client_twilio.messages.create(
-        from_=twilio_number,   # Deve estar no formato: whatsapp:+55...
-        to=sender_number,      # Também no formato: whatsapp:+55...
+        from_=twilio_number,
+        to=f"whatsapp:{sender_number}",
         body=resposta_final
     )
 
