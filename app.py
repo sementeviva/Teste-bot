@@ -6,7 +6,8 @@ from twilio.rest import Client
 from openai import OpenAI
 
 from utils.fluxo_vendas import listar_categorias, listar_produtos_categoria, adicionar_ao_carrinho, ver_carrinho
-from utils.fluxo_atendimento import iniciar_cadastro, processar_cadastro
+from utils.fluxo_atendimento import verificar_fluxo_atendimento
+from db_utils import salvar_mensagem
 
 app = Flask(__name__)
 app.secret_key = "chave_secreta_upload"
@@ -50,6 +51,7 @@ def carregar_produtos_db():
 
 produtos_df = carregar_produtos_db()
 
+# Busca produto no DataFrame
 def buscar_produto_csv(mensagem):
     mensagem_lower = mensagem.lower()
     resultados = produtos_df[produtos_df["nome"].str.contains(mensagem_lower)]
@@ -61,6 +63,7 @@ def buscar_produto_csv(mensagem):
         return "\n\n".join(respostas)
     return None
 
+# Gera contexto para o GPT
 def gerar_contexto_csv():
     contextos = []
     for _, row in produtos_df.iterrows():
@@ -91,60 +94,39 @@ Mensagem do cliente: {mensagem}
     )
     return response.choices[0].message.content.strip()
 
-# Verifica se o usuário está no meio de um fluxo de cadastro
-def verificar_fluxo_ativo(numero):
-    try:
-        conn = psycopg2.connect(
-            host=os.environ.get('db_host'),
-            database=os.environ.get('db_name'),
-            user=os.environ.get('db_user'),
-            password=os.environ.get('db_password'),
-            port=os.environ.get('db_port', 5432)
-        )
-        cur = conn.cursor()
-        cur.execute("SELECT etapa FROM clientes_fluxo WHERE telefone = %s", (numero,))
-        resultado = cur.fetchone()
-        conn.close()
-        return resultado is not None
-    except:
-        return False
-
 # Webhook do WhatsApp
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp_webhook():
-    sender_number = request.form.get("From").replace("whatsapp:", "")
-    user_message = request.form.get("Body").strip().lower()
+    sender = request.form.get("From").replace("whatsapp:", "")
+    user_message = request.form.get("Body").strip()
 
-    if user_message in ["menu", "ver produtos", "produtos"]:
-        resposta_final = listar_categorias()
+    salvar_mensagem(sender, user_message, "recebida")
 
-    elif user_message in ["carrinho", "ver carrinho"]:
-        resposta_final = ver_carrinho(sender_number)
-
-    elif user_message in ["cadastro", "quero me cadastrar"]:
-        resposta_final = iniciar_cadastro(sender_number)
-
-    elif verificar_fluxo_ativo(sender_number):
-        resposta_final = processar_cadastro(sender_number, user_message)
-
-    elif user_message.isdigit():
-        resposta_final = adicionar_ao_carrinho(sender_number, int(user_message))
-
-    elif user_message in ["chá", "chás", "suplementos", "óleos", "veganos"]:
-        resposta_final = listar_produtos_categoria(user_message)
-
-    else:
-        resposta_csv = buscar_produto_csv(user_message)
-        if resposta_csv:
-            resposta_final = resposta_csv
+    # Verifica se é fluxo de atendimento humano
+    resposta_final = verificar_fluxo_atendimento(sender, user_message)
+    if not resposta_final:
+        if user_message.lower() in ["menu", "ver produtos", "produtos"]:
+            resposta_final = listar_categorias()
+        elif user_message.lower() in ["carrinho", "ver carrinho"]:
+            resposta_final = ver_carrinho(sender)
+        elif user_message.isdigit():
+            resposta_final = adicionar_ao_carrinho(sender, int(user_message))
+        elif user_message.lower() in ["chá", "chás", "suplementos", "óleos", "veganos"]:
+            resposta_final = listar_produtos_categoria(user_message.lower())
         else:
-            resposta_final = get_gpt_response(user_message, contexto_produtos)
+            resposta_csv = buscar_produto_csv(user_message)
+            if resposta_csv:
+                resposta_final = resposta_csv
+            else:
+                resposta_final = get_gpt_response(user_message, contexto_produtos)
 
     client_twilio.messages.create(
         from_=twilio_number,
-        to=f"whatsapp:{sender_number}",
+        to=f"whatsapp:{sender}",
         body=resposta_final
     )
+
+    salvar_mensagem(sender, resposta_final, "enviada")
 
     return "OK", 200
 
