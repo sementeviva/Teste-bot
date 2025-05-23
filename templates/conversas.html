@@ -1,68 +1,44 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html>
 <head>
-    <meta charset="UTF-8" />
     <title>Histórico de Conversas</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f9f9f9;
-        }
-        h1 {
-            color: #2c3e50;
-        }
-        table {
-            border-collapse: collapse;
-            width: 100%;
-            background-color: white;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            vertical-align: top;
-        }
-        th {
-            background-color: #3498db;
-            color: white;
-            text-align: left;
-        }
-        tr:nth-child(even){
-            background-color: #f2f2f2;
-        }
-        .timestamp {
-            color: #7f8c8d;
-            font-size: 0.9em;
-        }
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 8px; border: 1px solid #ccc; text-align: left; }
+        form { margin-bottom: 20px; }
+        input[type="text"], input[type="date"] { padding: 5px; }
+        button { padding: 5px 10px; }
     </style>
 </head>
 <body>
     <h1>Histórico de Conversas</h1>
+
+    <form method="POST">
+        <label>Buscar por número:
+            <input type="text" name="contato" value="{{ contato or '' }}" placeholder="Ex: 5599999999999">
+        </label>
+        <label>Data:
+            <input type="date" name="data" value="{{ data or '' }}">
+        </label>
+        <button type="submit">Filtrar</button>
+    </form>
+
     <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Contato</th>
-                <th>Mensagem do Usuário</th>
-                <th>Resposta do Bot</th>
-                <th>Data/Hora</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for conv in conversas %}
-            <tr>
-                <td>{{ conv[0] }}</td>
-                <td>{{ conv[1] }}</td>
-                <td>{{ conv[2] | e }}</td>
-                <td>{{ conv[3] | e }}</td>
-                <td class="timestamp">{{ conv[4].strftime("%d/%m/%Y %H:%M:%S") }}</td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="5">Nenhuma conversa encontrada.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
+        <tr>
+            <th>Data/Hora</th>
+            <th>Contato</th>
+            <th>Mensagem do Usuário</th>
+            <th>Resposta do Bot</th>
+        </tr>
+        {% for row in conversas %}
+        <tr>
+            <td>{{ row[4].strftime('%d/%m/%Y %H:%M') }}</td>
+            <td>{{ row[1] }}</td>
+            <td>{{ row[2] }}</td>
+            <td>{{ row[3] }}</td>
+        </tr>
+        {% endfor %}
     </table>
 </body>
 </html>
