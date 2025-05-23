@@ -123,12 +123,12 @@ def whatsapp_webhook():
         body=resposta_final
     )
 
-    # Armazena no banco
+    # Armazena no banco (usando data_hora, não datahora)
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO conversas (contato, mensagem_usuario, resposta_bot, datahora) VALUES (%s, %s, %s, %s)",
+            "INSERT INTO conversas (contato, mensagem_usuario, resposta_bot, data_hora) VALUES (%s, %s, %s, %s)",
             (sender_number, user_message, resposta_final, datetime.now())
         )
         conn.commit()
@@ -153,10 +153,10 @@ def ver_conversas():
         query += " AND contato LIKE %s"
         params.append(f"%{contato}%")
     if data:
-        query += " AND DATE(datahora) = %s"
+        query += " AND DATE(data_hora) = %s"
         params.append(data)
 
-    query += " ORDER BY datahora DESC"
+    query += " ORDER BY data_hora DESC"
 
     cursor.execute(query, params)
     conversas = cursor.fetchall()
