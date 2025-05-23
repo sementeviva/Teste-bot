@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Histórico - {{ contato }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+</head>
+<body>
+  <div class="container py-4">
+    <h2 class="mb-4">Histórico de Conversas - {{ contato }}</h2>
+    <table class="table table-striped table-bordered">
+      <thead class="table-dark">
+        <tr>
+          <th>Data/Hora</th>
+          <th>Mensagem do Usuário</th>
+          <th>Resposta do Bot</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for data_hora, mensagem, resposta in conversas %}
+        <tr>
+          <td>{{ data_hora.strftime('%d/%m/%Y %H:%M:%S') if data_hora else '' }}</td>
+          <td>{{ mensagem }}</td>
+          <td>{{ resposta }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="3" class="text-center">Nenhuma conversa encontrada para este contato.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <a href="{{ url_for('listar_contatos') }}" class="btn btn-secondary mt-3">Voltar para Contatos</a>
+  </div>
+</body>
+</html>
