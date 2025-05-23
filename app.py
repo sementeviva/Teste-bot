@@ -4,23 +4,21 @@ import psycopg2
 from flask import Flask, request, render_template
 from twilio.rest import Client
 from openai import OpenAI
-
+from datetime import datetime
 from utils.fluxo_vendas import listar_categorias, listar_produtos_categoria, adicionar_ao_carrinho, ver_carrinho
-from utils.fluxo_atendimento import verificar_fluxo_atendimento
-from db_utils import salvar_mensagem
 
 app = Flask(__name__)
 app.secret_key = "chave_secreta_upload"
 
 # Blueprints
 from routes.upload_csv import upload_csv_bp
-app.register_blueprint(upload_csv_bp)
 from routes.edit_produtos import edit_produtos_bp
-app.register_blueprint(edit_produtos_bp)
 from routes.ver_produtos import ver_produtos_bp
+app.register_blueprint(upload_csv_bp)
+app.register_blueprint(edit_produtos_bp)
 app.register_blueprint(ver_produtos_bp)
 
-# Chaves de ambiente
+# Variáveis de ambiente
 openai_api_key = os.environ.get("OPENAI_API_KEY")
 twilio_sid = os.environ.get("TWILIO_ACCOUNT_SID")
 twilio_token = os.environ.get("TWILIO_AUTH_TOKEN")
@@ -29,16 +27,20 @@ twilio_number = os.environ.get("TWILIO_WHATSAPP_NUMBER")
 client_openai = OpenAI(api_key=openai_api_key)
 client_twilio = Client(twilio_sid, twilio_token)
 
-# Carrega produtos do banco de dados
+# Conexão com o banco
+def get_db_connection():
+    return psycopg2.connect(
+        host=os.environ.get('DB_HOST'),
+        database=os.environ.get('DB_NAME'),
+        user=os.environ.get('DB_USER'),
+        password=os.environ.get('DB_PASSWORD'),
+        port=os.environ.get('DB_PORT', 5432)
+    )
+
+# Carregar produtos do banco
 def carregar_produtos_db():
     try:
-        conn = psycopg2.connect(
-            host=os.environ.get('db_host'),
-            database=os.environ.get('db_name'),
-            user=os.environ.get('db_user'),
-            password=os.environ.get('db_password'),
-            port=os.environ.get('db_port', 5432)
-        )
+        conn = get_db_connection()
         df = pd.read_sql("SELECT * FROM produtos", conn)
         df.columns = [col.strip().lower() for col in df.columns]
         df.fillna("", inplace=True)
@@ -51,7 +53,7 @@ def carregar_produtos_db():
 
 produtos_df = carregar_produtos_db()
 
-# Busca produto no DataFrame
+# Busca no catálogo
 def buscar_produto_csv(mensagem):
     mensagem_lower = mensagem.lower()
     resultados = produtos_df[produtos_df["nome"].str.contains(mensagem_lower)]
@@ -63,7 +65,6 @@ def buscar_produto_csv(mensagem):
         return "\n\n".join(respostas)
     return None
 
-# Gera contexto para o GPT
 def gerar_contexto_csv():
     contextos = []
     for _, row in produtos_df.iterrows():
@@ -75,10 +76,10 @@ contexto_produtos = gerar_contexto_csv()
 
 def get_gpt_response(mensagem, contexto_produtos):
     prompt = f"""
-Você é um assistente de vendas de uma loja chamada Semente Viva.
-Use o seguinte catálogo para responder perguntas dos clientes de forma natural e clara.
+Você é um assistente de vendas da loja Semente Viva.
+Use o seguinte catálogo para responder de forma clara e natural.
 
-Catálogo de produtos:
+Catálogo:
 {contexto_produtos}
 
 Mensagem do cliente: {mensagem}
@@ -94,41 +95,74 @@ Mensagem do cliente: {mensagem}
     )
     return response.choices[0].message.content.strip()
 
-# Webhook do WhatsApp
+# Webhook WhatsApp
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp_webhook():
-    sender = request.form.get("From").replace("whatsapp:", "")
-    user_message = request.form.get("Body").strip()
+    sender_number = request.form.get("From").replace("whatsapp:", "")
+    user_message = request.form.get("Body").strip().lower()
 
-    salvar_mensagem(sender, user_message, "recebida")
-
-    # Verifica se é fluxo de atendimento humano
-    resposta_final = verificar_fluxo_atendimento(sender, user_message)
-    if not resposta_final:
-        if user_message.lower() in ["menu", "ver produtos", "produtos"]:
-            resposta_final = listar_categorias()
-        elif user_message.lower() in ["carrinho", "ver carrinho"]:
-            resposta_final = ver_carrinho(sender)
-        elif user_message.isdigit():
-            resposta_final = adicionar_ao_carrinho(sender, int(user_message))
-        elif user_message.lower() in ["chá", "chás", "suplementos", "óleos", "veganos"]:
-            resposta_final = listar_produtos_categoria(user_message.lower())
+    if user_message in ["menu", "ver produtos", "produtos"]:
+        resposta_final = listar_categorias()
+    elif user_message in ["carrinho", "ver carrinho"]:
+        resposta_final = ver_carrinho(sender_number)
+    elif user_message.isdigit():
+        resposta_final = adicionar_ao_carrinho(sender_number, int(user_message))
+    elif user_message in ["chá", "chás", "suplementos", "óleos", "veganos"]:
+        resposta_final = listar_produtos_categoria(user_message)
+    else:
+        resposta_csv = buscar_produto_csv(user_message)
+        if resposta_csv:
+            resposta_final = resposta_csv
         else:
-            resposta_csv = buscar_produto_csv(user_message)
-            if resposta_csv:
-                resposta_final = resposta_csv
-            else:
-                resposta_final = get_gpt_response(user_message, contexto_produtos)
+            resposta_final = get_gpt_response(user_message, contexto_produtos)
 
+    # Envia a resposta
     client_twilio.messages.create(
         from_=twilio_number,
-        to=f"whatsapp:{sender}",
+        to=f"whatsapp:{sender_number}",
         body=resposta_final
     )
 
-    salvar_mensagem(sender, resposta_final, "enviada")
+    # Armazena no banco
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO conversas (contato, mensagem_usuario, resposta_bot, datahora) VALUES (%s, %s, %s, %s)",
+            (sender_number, user_message, resposta_final, datetime.now())
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Erro ao salvar conversa: {e}")
 
     return "OK", 200
+
+@app.route("/conversas", methods=["GET", "POST"])
+def ver_conversas():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    contato = request.form.get("contato", "")
+    data = request.form.get("data", "")
+
+    query = "SELECT * FROM conversas WHERE 1=1"
+    params = []
+
+    if contato:
+        query += " AND contato LIKE %s"
+        params.append(f"%{contato}%")
+    if data:
+        query += " AND DATE(datahora) = %s"
+        params.append(data)
+
+    query += " ORDER BY datahora DESC"
+
+    cursor.execute(query, params)
+    conversas = cursor.fetchall()
+    conn.close()
+
+    return render_template("conversas.html", conversas=conversas, contato=contato, data=data)
 
 @app.route("/")
 def home():
