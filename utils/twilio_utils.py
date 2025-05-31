@@ -6,7 +6,7 @@ def send_whatsapp_message(to_number, body, media_url=None):
     Envia mensagem WhatsApp pelo Twilio.
     :param to_number: número do destinatário no formato 5599999999999 (sem 'whatsapp:')
     :param body: texto da mensagem
-    :param media_url: url da mídia (imagem), ou None
+    :param media_url: url da mídia (imagem), string OU lista, ou None
     :return: SID da mensagem (para debug), ou erro
     """
     account_sid = os.environ.get('TWILIO_ACCOUNT_SID')
@@ -27,8 +27,14 @@ def send_whatsapp_message(to_number, body, media_url=None):
             "from_": from_number,
             "to": to
         }
+        # Se media_url informado, garante formato lista e adiciona ao envio
         if media_url:
-            params["media_url"] = [media_url]
+            if isinstance(media_url, str):
+                params["media_url"] = [media_url]
+            elif isinstance(media_url, list):
+                params["media_url"] = media_url
+            else:
+                raise Exception("media_url deve ser string (URL) ou lista de URLs")
         message = client.messages.create(**params)
         print(f"[DEBUG Twilio] Mensagem enviada | SID: {message.sid} | Status: {message.status}")
         return message.sid
