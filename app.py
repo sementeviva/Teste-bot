@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 import psycopg2
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, jsonify, Response, abort
 from twilio.rest import Client
 from openai import OpenAI
 from datetime import datetime
@@ -125,6 +125,44 @@ Mensagem do cliente: {mensagem}
         temperature=0.7
     )
     return response.choices[0].message.content.strip()
+
+# =========================
+# ROTAS PARA IMAGEM PRODUTO
+# =========================
+
+@app.route('/upload_imagem/<int:produto_id>', methods=['POST'])
+def upload_imagem(produto_id):
+    if 'imagem' not in request.files:
+        return jsonify({'success': False, 'message': 'Nenhum arquivo enviado.'})
+    file = request.files['imagem']
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE produtos SET imagem = %s WHERE id = %s",
+            (psycopg2.Binary(file.read()), produto_id)
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({'success': True, 'message': 'Imagem enviada com sucesso!'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/ver_produtos/imagem/<int:produto_id>')
+def ver_imagem(produto_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT imagem FROM produtos WHERE id = %s", (produto_id,))
+    result = cur.fetchone()
+    cur.close()
+    conn.close()
+    if result and result[0]:
+        return Response(result[0], mimetype="image/jpeg")
+    else:
+        abort(404)
+
+# =========================
 
 # Webhook WhatsApp
 @app.route("/whatsapp", methods=["POST"])
