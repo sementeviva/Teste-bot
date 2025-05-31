@@ -1,35 +1,122 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
-    <meta charset="UTF-8">
-    <title>Produtos Cadastrados</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 40px; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 10px; border: 1px solid #ddd; }
-        th { background-color: #f2f2f2; }
-        h1 { color: #2E8B57; }
-    </style>
+  <meta charset="UTF-8">
+  <title>Painel de Produtos</title>
+  <style>
+    img { width: 64px; height: auto;}
+    .inativo { opacity: 0.6;}
+  </style>
 </head>
 <body>
-    <h1>Produtos Cadastrados</h1>
-    <table>
-        <tr>
-            <th>Nome</th>
-            <th>Descrição</th>
-            <th>Preço</th>
-            <th>Categoria</th>
-        </tr>
-        {% for produto in produtos %}
-        <tr>
-            <td>{{ produto[0] }}</td>
-            <td>{{ produto[1] }}</td>
-            <td>R$ {{ produto[2] }}</td>
-            <td>{{ produto[3] }}</td>
-        </tr>
-        {% endfor %}
-    </table>
-    <br>
-    <a href="/">Voltar</a>
+  <h1>Painel de Produtos</h1>
+  <form id="produto-form" enctype="multipart/form-data">
+    <input type="hidden" id="produto-id">
+    <input type="text" id="nome" placeholder="Nome" required>
+    <input type="text" id="descricao" placeholder="Descrição">
+    <input type="number" step="0.01" id="preco" placeholder="Preço" required>
+    <input type="file" id="foto" accept="image/*">
+    <label>
+      <input type="checkbox" id="ativo" checked> Ativo no catálogo
+    </label>
+    <button type="submit">Salvar</button>
+    <button type="button" onclick="resetForm()">Novo</button>
+  </form>
+  <hr>
+  <table border="1">
+    <thead>
+      <tr>
+        <th>Foto</th>
+        <th>Nome</th>
+        <th>Descrição</th>
+        <th>Preço</th>
+        <th>Ativo</th>
+        <th>Ação</th>
+      </tr>
+    </thead>
+    <tbody id="tabela-produtos"></tbody>
+  </table>
+<script>
+async function carregarProdutos() {
+  const res = await fetch('/api/products');
+  const produtos = await res.json();
+  let html = '';
+  produtos.forEach(produto => {
+    html += `<tr${!produto.ativo ? ' class="inativo"' : ''}>
+      <td>${produto.foto ? `<img src="${produto.foto}">` : ''}</td>
+      <td>${produto.nome}</td>
+      <td>${produto.descricao || ''}</td>
+      <td>R$ ${produto.preco.toFixed(2)}</td>
+      <td>
+        <input type="checkbox" ${produto.ativo ? "checked" : ""} onchange="toggleAtivo(${produto.id}, this.checked)">
+      </td>
+      <td>
+        <button onclick="editarProduto(${produto.id})">Editar</button>
+      </td>
+    </tr>`;
+  });
+  document.getElementById('tabela-produtos').innerHTML = html;
+}
+carregarProdutos();
+
+async function toggleAtivo(id, ativo) {
+  await fetch(`/api/products/${id}/ativo`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ativo})
+  });
+  carregarProdutos();
+}
+
+async function editarProduto(id) {
+  const res = await fetch(`/api/products`);
+  const produtos = await res.json();
+  const produto = produtos.find(p => p.id === id);
+  document.getElementById('produto-id').value = produto.id;
+  document.getElementById('nome').value = produto.nome;
+  document.getElementById('descricao').value = produto.descricao;
+  document.getElementById('preco').value = produto.preco;
+  document.getElementById('ativo').checked = produto.ativo;
+}
+
+function resetForm() {
+  document.getElementById('produto-id').value = "";
+  document.getElementById('produto-form').reset();
+}
+
+document.getElementById('produto-form').onsubmit = async (e) => {
+  e.preventDefault();
+  const id = document.getElementById('produto-id').value;
+  const nome = document.getElementById('nome').value;
+  const descricao = document.getElementById('descricao').value;
+  const preco = document.getElementById('preco').value;
+  const ativo = document.getElementById('ativo').checked;
+  const fotoInput = document.getElementById('foto');
+
+  const formData = new FormData();
+  formData.append('nome', nome);
+  formData.append('descricao', descricao);
+  formData.append('preco', preco);
+  formData.append('ativo', ativo);
+
+  if (fotoInput.files.length) {
+    formData.append('foto', fotoInput.files[0]);
+  }
+
+  if (id) {
+    await fetch(`/api/products/${id}`, {
+      method: 'PUT',
+      body: formData
+    });
+  } else {
+    await fetch('/api/products', {
+      method: 'POST',
+      body: formData
+    });
+  }
+  resetForm();
+  carregarProdutos();
+};
+</script>
 </body>
 </html>
