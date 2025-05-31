@@ -195,6 +195,9 @@ def ver_conversas():
 @app.route("/")
 def home():
     return render_template("index.html")
+from routes.ver_produtos import ver_produtos_bp
+
+app.register_blueprint(ver_produtos_bp)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
