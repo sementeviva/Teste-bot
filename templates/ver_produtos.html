@@ -2,55 +2,122 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Produtos Cadastrados</title>
+    <title>Produtos</title>
+    <style>
+        table { width:100%; border-collapse:collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #4CAF50; color: white; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        img { max-width: 100px; max-height: 50px; }
+        .message { margin-top: 10px; font-weight: bold; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
 </head>
 <body>
-    <h1>Produtos Cadastrados</h1>
-    <form method="get" action="{{ url_for('ver_produtos.ver_produtos') }}">
-        <input type="text" name="nome" placeholder="Filtrar por nome" value="{{request.args.get('nome','')}}">
-        <input type="text" name="categoria" placeholder="Filtrar por categoria" value="{{request.args.get('categoria','')}}">
-        <input type="text" name="status" placeholder="Status" value="{{request.args.get('status','')}}">
-        <button type="submit">Filtrar</button>
-    </form>
-    <hr>
-    <table border="1" cellpadding="8" cellspacing="0">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Nome</th>
-                <th>Categoria</th>
-                <th>Descrição</th>
-                <th>Preço</th>
-                <th>Status</th>
-                <th>Imagem</th>
-                <th>Ações</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for p in produtos %}
-            <tr>
-                <td>{{ p.id }}</td>
-                <td>{{ p.nome }}</td>
-                <td>{{ p.categoria }}</td>
-                <td>{{ p.descricao }}</td>
-                <td>{{ p.preco }}</td>
-                <td>{{ p.status }}</td>
-                <td>
-                    {% if p.imagem_url %}
-                        <img src="{{ p.imagem_url }}" alt="Imagem" width="100">
-                    {% else %}
-                        Sem imagem
-                    {% endif %}
-                </td>
-                <td>
-                    <form method="post" action="{{ url_for('ver_produtos.upload_imagem', produto_id=p.id) }}" enctype="multipart/form-data">
-                        <input type="file" name="imagem" required>
-                        <button type="submit">Upload</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<h2>Produtos</h2>
+<table>
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>Nome</th>
+        <th>Preço</th>
+        <th>Descrição</th>
+        <th>Categoria</th>
+        <th>Imagem</th>
+        <th>Ativo</th>
+        <th>Ações</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for produto in produtos %}
+        <tr id="row-{{ produto[0] }}">
+            <td>{{ produto[0] }}</td>
+            <td><input type="text" id="nome-{{ produto[0] }}" value="{{ produto[1] }}"></td>
+            <td><input type="number" id="preco-{{ produto[0] }}" value="{{ produto[2] }}" step="0.01"></td>
+            <td><input type="text" id="descricao-{{ produto[0] }}" value="{{ produto[3] }}"></td>
+            <td>
+                <select id="categoria-{{ produto[0] }}">
+                {% for categoria in categorias %}
+                    <option value="{{ categoria }}" {% if produto[4] == categoria %}selected{% endif %}>{{ categoria }}</option>
+                {% endfor %}
+                </select>
+            </td>
+            <td>
+                {% if produto[5] %}
+                    <img src="{{ url_for('ver_produtos.imagem_produto', produto_id=produto[0]) }}" alt="{{ produto[1] }}">
+                {% endif %}
+                <form onsubmit="return enviarImagem(event, {{ produto[0] }})" enctype="multipart/form-data">
+                    <input type="file" name="imagem" accept="image/*">
+                    <input type="submit" value="Upload">
+                </form>
+            </td>
+            <td>
+                <input type="checkbox" id="ativo-{{ produto[0] }}" {% if produto[6] %}checked{% endif %}>
+            </td>
+            <td>
+                <button onclick="salvar({{ produto[0] }})">Salvar</button>
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+<div id="mensagem" class="message"></div>
+<script>
+function salvar(id) {
+    const nome = document.getElementById('nome-' + id).value;
+    const preco = document.getElementById('preco-' + id).value;
+    const descricao = document.getElementById('descricao-' + id).value;
+    const categoria = document.getElementById('categoria-' + id).value;
+    const ativo = document.getElementById('ativo-' + id).checked;
+    fetch('/editar_produto/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id, nome, preco, descricao, categoria, ativo })
+    })
+    .then(res => res.json())
+    .then(data => {
+        const mensagem = document.getElementById('mensagem');
+        mensagem.textContent = data.message;
+        mensagem.className = 'message ' + (data.success ? 'success' : 'error');
+    })
+    .catch(error => {
+        const mensagem = document.getElementById('mensagem');
+        mensagem.textContent = 'Erro ao salvar.';
+        mensagem.className = 'message error';
+    });
+}
+
+function enviarImagem(event, id) {
+    event.preventDefault();
+    const form = event.target;
+    const fileInput = form.querySelector('input[type="file"]');
+    if (!fileInput.files.length) {
+        alert("Selecione um arquivo primeiro.");
+        return false;
+    }
+    const formData = new FormData();
+    formData.append('imagem', fileInput.files[0]);
+    fetch('/upload_imagem/' + id, {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        const mensagem = document.getElementById('mensagem');
+        mensagem.textContent = data.message;
+        mensagem.className = 'message ' + (data.success ? 'success' : 'error');
+        if (data.success) location.reload();
+    })
+    .catch(error => {
+        const mensagem = document.getElementById('mensagem');
+        mensagem.textContent = 'Erro no upload.';
+        mensagem.className = 'message error';
+    });
+    return false;
+}
+</script>
 </body>
 </html>
