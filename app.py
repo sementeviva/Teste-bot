@@ -7,7 +7,6 @@ from datetime import datetime
 
 # Importa o utilitário Twilio centralizado
 from utils.twilio_utils import send_whatsapp_message
-
 from utils.fluxo_vendas import listar_categorias, listar_produtos_categoria, adicionar_ao_carrinho, ver_carrinho
 
 # Blueprints
@@ -26,7 +25,6 @@ app.register_blueprint(ver_produtos_bp, url_prefix="/ver_produtos")
 # Variáveis de ambiente
 openai_api_key = os.environ.get("OPENAI_API_KEY")
 RENDER_BASE_URL = "https://teste-bot-9ppl.onrender.com"  # Seu domínio público do Render
-
 client_openai = OpenAI(api_key=openai_api_key)
 
 # Conexão com o banco
@@ -56,7 +54,6 @@ def buscar_produto_csv(mensagem):
     df = carregar_produtos_db()
     mensagem_lower = mensagem.lower()
     resultados = df[df["nome"].str.contains(mensagem_lower)]
-
     if not resultados.empty:
         respostas = []
         for _, row in resultados.iterrows():
@@ -102,24 +99,20 @@ def get_gpt_response(mensagem):
     prompt = f"""
 Você é um assistente virtual de vendas da loja Semente Viva, especializada em produtos naturais.
 Seu objetivo é oferecer um atendimento humanizado, simpático e eficiente, guiando o cliente durante toda a jornada de compra.
-
 Funil de Vendas:
 - Identifique o estágio do cliente: descoberta, consideração, decisão, pós-venda.
 - No início da conversa, descubra as necessidades ou objetivos do cliente com perguntas abertas.
 - Apresente produtos relevantes conforme o estágio (ex: para novos clientes, foque em apresentação de categorias e benefícios; para clientes recorrentes, apresente promoções e complementos).
 - Sempre convide o cliente a avançar para o próximo passo do funil: olhar produtos, tirar dúvidas, montar o carrinho, fechar a compra.
-
 Carrinho de Compras:
 - Ajude o cliente a adicionar, remover e revisar produtos no carrinho.
 - Informe sempre que um produto foi adicionado ou removido.
 - Permita que ele consulte o carrinho a qualquer momento ("Deseja ver o que já escolheu?").
 - Mostre um resumo do carrinho antes do fechamento do pedido (produtos, quantidades, valores).
-
 Fotos dos Produtos:
 - Sempre que apresentar ou recomendar um produto, envie também a foto correspondente, se disponível, para ajudar o cliente na escolha.
 - Só envie a imagem do produto correspondente ao que está sendo perguntado ou sugerido.
 - Utilize a informação abaixo para localizar ou identificar a foto de cada produto e descreva a imagem de forma complementar para ajudar clientes com possíveis limitações visuais.
-
 Diretrizes do atendimento aprimoradas:
 1. Sempre utilize linguagem personalizada, cordial e animada.
 2. Proponha próximos passos claros conforme o estágio de compra do cliente.
@@ -129,12 +122,10 @@ Diretrizes do atendimento aprimoradas:
 6. Nunca solicite dados sensíveis.
 7. Encaminhe para atendimento humano caso necessário.
 8. Finalize cada atendimento agradecendo e se colocando à disposição para dúvidas ou acompanhamentos futuros.
-
 Catálogo de produtos (com fotos):
 {contexto_produtos}
-
 Mensagem do cliente: {mensagem}
-    """
+"""
     response = client_openai.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
@@ -190,7 +181,6 @@ def ver_imagem(produto_id):
 def whatsapp_webhook():
     sender_number = request.form.get("From", "").replace("whatsapp:", "")
     user_message = request.form.get("Body", "").strip()
-
     if not sender_number or not user_message:
         return "Dados insuficientes", 400
 
@@ -231,8 +221,13 @@ def whatsapp_webhook():
 
     # NOVO: resposta para consultas por produto com envio de imagem
     produto_detalhado = buscar_produto_detalhado(user_message)
+
     if produto_detalhado:
-        resposta_final = f"{produto_detalhado['nome'].capitalize()} - R$ {produto_detalhado['preco']}\n{produto_detalhado['descricao']}"
+        resposta_final = (
+            f"{produto_detalhado['nome'].capitalize()} - R$ {produto_detalhado['preco']}\n"
+            f"{produto_detalhado['descricao']}\n"
+            "Confira a imagem do produto abaixo." if produto_detalhado["tem_imagem"] else ""
+        )
         if produto_detalhado["tem_imagem"]:
             img_url = f"{RENDER_BASE_URL}/ver_produtos/imagem/{produto_detalhado['id']}"
             send_whatsapp_message(
@@ -286,7 +281,6 @@ def whatsapp_webhook():
         conn.close()
     except Exception as e:
         print(f"Erro ao salvar conversa: {e}")
-
     return "OK", 200
 
 @app.route("/conversas", methods=["GET", "POST"])
