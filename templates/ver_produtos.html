@@ -3,19 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <title>Produtos Cadastrados</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { padding: 8px 10px; text-align: left; }
+        th { background: #f2f2f2; }
+        tr:nth-child(even) { background: #fafafa; }
+        img { border-radius: 4px; }
+        form.inline { display: inline; }
+    </style>
 </head>
 <body>
     <h1>Produtos Cadastrados</h1>
     <form method="get" action="{{ url_for('ver_produtos_bp.ver_produtos') }}">
-        Nome: <input type="text" name="nome" value="{{ nome_filtro }}">
-        Categoria:
+        <label>Nome:</label>
+        <input type="text" name="nome" value="{{ nome_filtro|default('') }}">
+        <label>Categoria:</label>
         <select name="categoria">
             <option value="">Todas</option>
             {% for categoria in categorias %}
                 <option value="{{ categoria }}" {% if categoria==categoria_filtro %}selected{% endif %}>{{ categoria }}</option>
             {% endfor %}
         </select>
-        Status:
+        <label>Status:</label>
         <select name="ativo">
             <option value="">Todos</option>
             <option value="True" {% if ativo_filtro=='True' %}selected{% endif %}>Ativo</option>
@@ -24,7 +34,7 @@
         <button type="submit">Filtrar</button>
     </form>
     <hr>
-    <table border="1" cellpadding="5">
+    <table border="1">
         <thead>
             <tr>
                 <th>Imagem</th>
@@ -42,7 +52,7 @@
             <tr>
                 <td>
                     {% if produto.imagem %}
-                        <img src="/{{ produto.imagem }}" width="64">
+                        <img src="/{{ produto.imagem }}" width="64" alt="{{ produto.nome }}">
                     {% else %}
                         Sem imagem
                     {% endif %}
@@ -53,16 +63,19 @@
                 <td>{{ produto.descricao }}</td>
                 <td>{% if produto.ativo %}Ativo{% else %}Inativo{% endif %}</td>
                 <td>
-                    <a href="{{ url_for('ver_produtos_bp.editar_produto', id=produto.id) }}">Editar</a>
-                    |
+                    <a href="{{ url_for('ver_produtos_bp.editar_produto', id=produto.id) }}">Editar</a> |
                     <a href="{{ url_for('ver_produtos_bp.ativar_produto', id=produto.id) }}">Ativar/Desativar</a>
                 </td>
                 <td>
-                    <form method="post" action="{{ url_for('ver_produtos_bp.upload_imagem', id=produto.id) }}" enctype="multipart/form-data">
+                    <form method="post" action="{{ url_for('ver_produtos_bp.upload_imagem', id=produto.id) }}" enctype="multipart/form-data" class="inline">
                         <input type="file" name="imagem" required>
                         <button type="submit">Upload</button>
                     </form>
                 </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8" style="text-align:center">Nenhum produto encontrado.</td>
             </tr>
             {% endfor %}
         </tbody>
