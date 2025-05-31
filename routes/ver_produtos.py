@@ -1,6 +1,5 @@
 from flask import (
-    Blueprint, render_template, request, redirect, url_for,
-    flash, send_file, current_app, jsonify
+    Blueprint, render_template, request, jsonify, send_file, current_app, flash
 )
 import psycopg2
 import os
@@ -9,7 +8,7 @@ from io import BytesIO
 ver_produtos_bp = Blueprint('ver_produtos', __name__, template_folder='../templates')
 
 def get_db_connection():
-    # CONFIRA se sua função está igual ou ajuste para seu ambiente!
+    # Ajuste para seu ambiente!
     return psycopg2.connect(
         host=os.environ.get('DB_HOST'),
         database=os.environ.get('DB_NAME'),
@@ -18,7 +17,7 @@ def get_db_connection():
         port=os.environ.get('DB_PORT', 5432)
     )
 
-# 1. Página com produtos e edição inline
+# Página de listagem/edição
 @ver_produtos_bp.route('/ver_produtos/', methods=['GET'])
 def ver_produtos():
     try:
@@ -26,7 +25,7 @@ def ver_produtos():
         cur = conn.cursor()
         cur.execute("SELECT id, nome, preco, descricao, categoria, imagem, ativo FROM produtos")
         produtos = cur.fetchall()
-        categorias_unicas = sorted({p[4] for p in produtos if p[4]})  # lista única de categorias
+        categorias_unicas = sorted({p[4] for p in produtos if p[4]})
     except Exception as e:
         current_app.logger.exception("Erro ao listar produtos")
         flash(f"Erro ao listar produtos: {e}", "danger")
@@ -35,16 +34,12 @@ def ver_produtos():
     finally:
         if 'cur' in locals(): cur.close()
         if 'conn' in locals(): conn.close()
-    return render_template(
-        'ver_produtos.html',
-        produtos=produtos,
-        categorias=categorias_unicas
-    )
+    return render_template('ver_produtos.html', produtos=produtos, categorias=categorias_unicas)
 
-# 2. Atualização via AJAX (campo texto, número, ativo/inativo)
+# Atualização inline (nome, preco, descricao, categoria, ativo)
 @ver_produtos_bp.route('/editar_produto/', methods=['POST'])
 def editar_produto():
-    data = request.json
+    data = request.get_json()
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -72,7 +67,7 @@ def editar_produto():
         if 'cur' in locals(): cur.close()
         if 'conn' in locals(): conn.close()
 
-# 3. Upload de imagem
+# Upload de imagem
 @ver_produtos_bp.route('/upload_imagem/<int:produto_id>', methods=['POST'])
 def upload_imagem(produto_id):
     if 'imagem' not in request.files:
@@ -92,7 +87,7 @@ def upload_imagem(produto_id):
         if 'cur' in locals(): cur.close()
         if 'conn' in locals(): conn.close()
 
-# 4. Visualização de imagem
+# Visualização da imagem
 @ver_produtos_bp.route('/imagem/<int:produto_id>')
 def imagem_produto(produto_id):
     try:
