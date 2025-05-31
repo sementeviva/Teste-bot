@@ -5,15 +5,18 @@ from flask import Flask, request, render_template
 from twilio.rest import Client
 from openai import OpenAI
 from datetime import datetime
-from utils.fluxo_vendas import listar_categorias, listar_produtos_categoria, adicionar_ao_carrinho, ver_carrinho
 
-app = Flask(__name__)
-app.secret_key = "chave_secreta_upload"
+from utils.fluxo_vendas import listar_categorias, listar_produtos_categoria, adicionar_ao_carrinho, ver_carrinho
 
 # Blueprints
 from routes.upload_csv import upload_csv_bp
 from routes.edit_produtos import edit_produtos_bp
 from routes.ver_produtos import ver_produtos_bp
+
+app = Flask(__name__)
+app.secret_key = "chave_secreta_upload"
+
+# Registre os blueprints só uma vez!
 app.register_blueprint(upload_csv_bp)
 app.register_blueprint(edit_produtos_bp)
 app.register_blueprint(ver_produtos_bp)
@@ -151,7 +154,7 @@ def whatsapp_webhook():
         body=resposta_final
     )
 
-    # Armazena no banco (usando data_hora, não datahora)
+    # Salva no banco (usando data_hora)
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -195,9 +198,6 @@ def ver_conversas():
 @app.route("/")
 def home():
     return render_template("index.html")
-from routes.ver_produtos import ver_produtos_bp
-
-app.register_blueprint(ver_produtos_bp)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
