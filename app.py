@@ -2,9 +2,12 @@ import os
 import pandas as pd
 import psycopg2
 from flask import Flask, request, render_template, jsonify, Response, abort
-from twilio.rest import Client
 from openai import OpenAI
 from datetime import datetime
+
+# Importa o utilitário Twilio centralizado
+from utils.twilio_utils import send_whatsapp_message
+
 from utils.fluxo_vendas import listar_categorias, listar_produtos_categoria, adicionar_ao_carrinho, ver_carrinho
 
 # Blueprints
@@ -22,13 +25,9 @@ app.register_blueprint(ver_produtos_bp, url_prefix="/ver_produtos")
 
 # Variáveis de ambiente
 openai_api_key = os.environ.get("OPENAI_API_KEY")
-twilio_sid = os.environ.get("TWILIO_ACCOUNT_SID")
-twilio_token = os.environ.get("TWILIO_AUTH_TOKEN")
-twilio_number = os.environ.get("TWILIO_WHATSAPP_NUMBER")
 RENDER_BASE_URL = "https://teste-bot-9ppl.onrender.com"  # Seu domínio público do Render
 
 client_openai = OpenAI(api_key=openai_api_key)
-client_twilio = Client(twilio_sid, twilio_token)
 
 # Conexão com o banco
 def get_db_connection():
@@ -57,6 +56,7 @@ def buscar_produto_csv(mensagem):
     df = carregar_produtos_db()
     mensagem_lower = mensagem.lower()
     resultados = df[df["nome"].str.contains(mensagem_lower)]
+
     if not resultados.empty:
         respostas = []
         for _, row in resultados.iterrows():
@@ -102,20 +102,24 @@ def get_gpt_response(mensagem):
     prompt = f"""
 Você é um assistente virtual de vendas da loja Semente Viva, especializada em produtos naturais.
 Seu objetivo é oferecer um atendimento humanizado, simpático e eficiente, guiando o cliente durante toda a jornada de compra.
+
 Funil de Vendas:
 - Identifique o estágio do cliente: descoberta, consideração, decisão, pós-venda.
 - No início da conversa, descubra as necessidades ou objetivos do cliente com perguntas abertas.
 - Apresente produtos relevantes conforme o estágio (ex: para novos clientes, foque em apresentação de categorias e benefícios; para clientes recorrentes, apresente promoções e complementos).
 - Sempre convide o cliente a avançar para o próximo passo do funil: olhar produtos, tirar dúvidas, montar o carrinho, fechar a compra.
+
 Carrinho de Compras:
 - Ajude o cliente a adicionar, remover e revisar produtos no carrinho.
 - Informe sempre que um produto foi adicionado ou removido.
 - Permita que ele consulte o carrinho a qualquer momento ("Deseja ver o que já escolheu?").
 - Mostre um resumo do carrinho antes do fechamento do pedido (produtos, quantidades, valores).
+
 Fotos dos Produtos:
 - Sempre que apresentar ou recomendar um produto, envie também a foto correspondente, se disponível, para ajudar o cliente na escolha.
 - Só envie a imagem do produto correspondente ao que está sendo perguntado ou sugerido.
 - Utilize a informação abaixo para localizar ou identificar a foto de cada produto e descreva a imagem de forma complementar para ajudar clientes com possíveis limitações visuais.
+
 Diretrizes do atendimento aprimoradas:
 1. Sempre utilize linguagem personalizada, cordial e animada.
 2. Proponha próximos passos claros conforme o estágio de compra do cliente.
@@ -125,10 +129,12 @@ Diretrizes do atendimento aprimoradas:
 6. Nunca solicite dados sensíveis.
 7. Encaminhe para atendimento humano caso necessário.
 8. Finalize cada atendimento agradecendo e se colocando à disposição para dúvidas ou acompanhamentos futuros.
+
 Catálogo de produtos (com fotos):
 {contexto_produtos}
+
 Mensagem do cliente: {mensagem}
-"""
+    """
     response = client_openai.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
@@ -185,7 +191,6 @@ def whatsapp_webhook():
     sender_number = request.form.get("From", "").replace("whatsapp:", "")
     user_message = request.form.get("Body", "").strip()
 
-    # Evita erro se não vier campo obrigatório
     if not sender_number or not user_message:
         return "Dados insuficientes", 400
 
@@ -194,36 +199,32 @@ def whatsapp_webhook():
     # Atalhos para menu/carrinho/categoria
     if user_message_lower in ["menu", "ver produtos", "produtos"]:
         resposta_final = listar_categorias()
-        client_twilio.messages.create(
-            from_=twilio_number,
-            to=f"whatsapp:{sender_number}",
+        send_whatsapp_message(
+            to_number=sender_number,
             body=resposta_final
         )
         return "OK", 200
 
     elif user_message_lower in ["carrinho", "ver carrinho"]:
         resposta_final = ver_carrinho(sender_number)
-        client_twilio.messages.create(
-            from_=twilio_number,
-            to=f"whatsapp:{sender_number}",
+        send_whatsapp_message(
+            to_number=sender_number,
             body=resposta_final
         )
         return "OK", 200
 
     elif user_message.isdigit():
         resposta_final = adicionar_ao_carrinho(sender_number, int(user_message))
-        client_twilio.messages.create(
-            from_=twilio_number,
-            to=f"whatsapp:{sender_number}",
+        send_whatsapp_message(
+            to_number=sender_number,
             body=resposta_final
         )
         return "OK", 200
 
     elif user_message_lower in ["chá", "chás", "suplementos", "óleos", "veganos"]:
         resposta_final = listar_produtos_categoria(user_message_lower)
-        client_twilio.messages.create(
-            from_=twilio_number,
-            to=f"whatsapp:{sender_number}",
+        send_whatsapp_message(
+            to_number=sender_number,
             body=resposta_final
         )
         return "OK", 200
@@ -234,16 +235,14 @@ def whatsapp_webhook():
         resposta_final = f"{produto_detalhado['nome'].capitalize()} - R$ {produto_detalhado['preco']}\n{produto_detalhado['descricao']}"
         if produto_detalhado["tem_imagem"]:
             img_url = f"{RENDER_BASE_URL}/ver_produtos/imagem/{produto_detalhado['id']}"
-            client_twilio.messages.create(
-                from_=twilio_number,
-                to=f"whatsapp:{sender_number}",
+            send_whatsapp_message(
+                to_number=sender_number,
                 body=resposta_final,
-                media_url=[img_url]
+                media_url=img_url
             )
         else:
-            client_twilio.messages.create(
-                from_=twilio_number,
-                to=f"whatsapp:{sender_number}",
+            send_whatsapp_message(
+                to_number=sender_number,
                 body=resposta_final
             )
         # Log de conversa
@@ -263,18 +262,15 @@ def whatsapp_webhook():
     # Caso não encontre produto, segue fluxo padrão com busca por nome ou IA
     resposta_csv = buscar_produto_csv(user_message)
     if resposta_csv:
-        client_twilio.messages.create(
-            from_=twilio_number,
-            to=f"whatsapp:{sender_number}",
+        send_whatsapp_message(
+            to_number=sender_number,
             body=resposta_csv
         )
         resposta_final = resposta_csv
-
     else:
         resposta_final = get_gpt_response(user_message)
-        client_twilio.messages.create(
-            from_=twilio_number,
-            to=f"whatsapp:{sender_number}",
+        send_whatsapp_message(
+            to_number=sender_number,
             body=resposta_final
         )
 
@@ -299,7 +295,6 @@ def ver_conversas():
     cursor = conn.cursor()
     contato = request.form.get("contato", "")
     data = request.form.get("data", "")
-
     query = "SELECT * FROM conversas WHERE 1=1"
     params = []
     if contato:
