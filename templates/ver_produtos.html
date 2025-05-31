@@ -64,13 +64,14 @@
 </table>
 <div id="mensagem" class="message"></div>
 <script>
+// AJAX para salvar edição
 function salvar(id) {
     const nome = document.getElementById('nome-' + id).value;
     const preco = document.getElementById('preco-' + id).value;
     const descricao = document.getElementById('descricao-' + id).value;
     const categoria = document.getElementById('categoria-' + id).value;
     const ativo = document.getElementById('ativo-' + id).checked;
-    fetch('/editar_produto/', {
+    fetch('/ver_produtos/editar_produto/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -90,6 +91,7 @@ function salvar(id) {
     });
 }
 
+// AJAX para upload de imagem
 function enviarImagem(event, id) {
     event.preventDefault();
     const form = event.target;
@@ -100,7 +102,7 @@ function enviarImagem(event, id) {
     }
     const formData = new FormData();
     formData.append('imagem', fileInput.files[0]);
-    fetch('/upload_imagem/' + id, {
+    fetch('/ver_produtos/upload_imagem/' + id, {
         method: 'POST',
         body: formData
     })
