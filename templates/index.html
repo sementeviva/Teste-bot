@@ -15,17 +15,17 @@
 
         <div class="row justify-content-center">
             <div class="col-md-4">
-                <a href="/upload" class="btn btn-outline-success w-100 mb-3">
+                <a href="{{ url_for('upload_csv_bp.upload_csv') }}" class="btn btn-outline-success w-100 mb-3">
                     <i class="bi bi-upload me-2"></i> Fazer upload de CSV
                 </a>
             </div>
             <div class="col-md-4">
-                <a href="/ver-produtos" class="btn btn-outline-success w-100 mb-3">
+                <a href="{{ url_for('ver_produtos_bp.ver_produtos') }}" class="btn btn-outline-success w-100 mb-3">
                     <i class="bi bi-box-seam me-2"></i> Ver produtos cadastrados
                 </a>
             </div>
             <div class="col-md-4">
-                <a href="/conversas" class="btn btn-outline-success w-100 mb-3">
+                <a href="{{ url_for('ver_conversas') }}" class="btn btn-outline-success w-100 mb-3">
                     <i class="bi bi-chat-dots me-2"></i> Visualizar histórico de conversas
                 </a>
             </div>
