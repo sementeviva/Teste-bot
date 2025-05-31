@@ -1,7 +1,6 @@
-# routes/ver_produtos.py
-
 from flask import (
-    Blueprint, render_template, request, redirect, url_for, flash, send_file, current_app
+    Blueprint, render_template, request, redirect, url_for,
+    flash, send_file, current_app, jsonify
 )
 import psycopg2
 import os
@@ -10,6 +9,7 @@ from io import BytesIO
 ver_produtos_bp = Blueprint('ver_produtos', __name__, template_folder='../templates')
 
 def get_db_connection():
+    # CONFIRA se sua função está igual ou ajuste para seu ambiente!
     return psycopg2.connect(
         host=os.environ.get('DB_HOST'),
         database=os.environ.get('DB_NAME'),
@@ -18,49 +18,15 @@ def get_db_connection():
         port=os.environ.get('DB_PORT', 5432)
     )
 
-@ver_produtos_bp.route('/', methods=['GET'])
+# 1. Página com produtos e edição inline
+@ver_produtos_bp.route('/ver_produtos/', methods=['GET'])
 def ver_produtos():
-    """Exibe lista dos produtos com filtros opcionais."""
-    nome = request.args.get('nome', '').strip()
-    categoria = request.args.get('categoria', '').strip()
-    status = request.args.get('status', '').strip()
-
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-
-        query = "SELECT id, nome, descricao, preco, categoria, ativo, imagem FROM produtos WHERE TRUE"
-        params = []
-        if nome:
-            query += " AND nome ILIKE %s"
-            params.append(f"%{nome}%")
-        if categoria:
-            query += " AND categoria = %s"
-            params.append(categoria)
-        if status:
-            # status deve ser 'ativo' ou 'inativo'
-            if status.lower() == 'ativo':
-                query += " AND ativo = TRUE"
-            elif status.lower() == 'inativo':
-                query += " AND ativo = FALSE"
-
-        query += " ORDER BY id"
-        cur.execute(query, params)
-
-        produtos = []
-        for row in cur.fetchall():
-            produtos.append({
-                'id': row[0],
-                'nome': row[1],
-                'descricao': row[2],
-                'preco': row[3],
-                'categoria': row[4],
-                'ativo': row[5],
-                'imagem_url': url_for('ver_produtos.imagem_produto', produto_id=row[0]) if row[6] else None
-            })
-
-        # Para preencher o filtro de categorias com opções únicas presentes no DB
-        categorias_unicas = sorted(set(p['categoria'] for p in produtos if p['categoria']))
+        cur.execute("SELECT id, nome, preco, descricao, categoria, imagem, ativo FROM produtos")
+        produtos = cur.fetchall()
+        categorias_unicas = sorted({p[4] for p in produtos if p[4]})  # lista única de categorias
     except Exception as e:
         current_app.logger.exception("Erro ao listar produtos")
         flash(f"Erro ao listar produtos: {e}", "danger")
@@ -69,59 +35,76 @@ def ver_produtos():
     finally:
         if 'cur' in locals(): cur.close()
         if 'conn' in locals(): conn.close()
-
     return render_template(
         'ver_produtos.html',
         produtos=produtos,
-        categorias=categorias_unicas,
-        nome_filtro=nome,
-        categoria_filtro=categoria,
-        ativo_filtro=status
+        categorias=categorias_unicas
     )
 
-@ver_produtos_bp.route('/upload_imagem/<int:produto_id>', methods=['POST'])
-def upload_imagem(produto_id):
-    """Rota para upload de uma imagem associada ao produto."""
-    if 'imagem' not in request.files:
-        flash('Nenhum arquivo de imagem selecionado.', 'danger')
-        return redirect(url_for('ver_produtos.ver_produtos'))
-    imagem = request.files['imagem']
-    if not imagem or imagem.filename == '':
-        flash('Nenhum arquivo de imagem selecionado.', 'danger')
-        return redirect(url_for('ver_produtos.ver_produtos'))
-
+# 2. Atualização via AJAX (campo texto, número, ativo/inativo)
+@ver_produtos_bp.route('/editar_produto/', methods=['POST'])
+def editar_produto():
+    data = request.json
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        # Salva o arquivo binário no campo imagem
-        cur.execute("UPDATE produtos SET imagem = %s WHERE id = %s", (psycopg2.Binary(imagem.read()), produto_id))
+        query = """
+            UPDATE produtos
+            SET nome=%s, preco=%s, descricao=%s, categoria=%s, ativo=%s
+            WHERE id=%s
+        """
+        cur.execute(
+            query,
+            (
+                data['nome'],
+                float(data['preco']),
+                data['descricao'],
+                data['categoria'],
+                data['ativo'],
+                data['id']
+            )
+        )
         conn.commit()
-        flash("Imagem enviada com sucesso!", "success")
+        return jsonify({'success': True, 'message': 'Produto atualizado!'})
     except Exception as e:
-        current_app.logger.exception("Erro ao fazer upload da imagem")
-        flash(f"Erro ao fazer upload da imagem: {e}", "danger")
+        return jsonify({'success': False, 'message': str(e)})
     finally:
         if 'cur' in locals(): cur.close()
         if 'conn' in locals(): conn.close()
-    return redirect(url_for('ver_produtos.ver_produtos'))
 
+# 3. Upload de imagem
+@ver_produtos_bp.route('/upload_imagem/<int:produto_id>', methods=['POST'])
+def upload_imagem(produto_id):
+    if 'imagem' not in request.files:
+        return jsonify({'success': False, 'message': 'Nenhum arquivo selecionado.'})
+    file = request.files['imagem']
+    if file.filename == '':
+        return jsonify({'success': False, 'message': 'Nenhum arquivo selecionado.'})
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("UPDATE produtos SET imagem = %s WHERE id = %s", (psycopg2.Binary(file.read()), produto_id))
+        conn.commit()
+        return jsonify({'success': True, 'message': 'Imagem enviada!'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+    finally:
+        if 'cur' in locals(): cur.close()
+        if 'conn' in locals(): conn.close()
+
+# 4. Visualização de imagem
 @ver_produtos_bp.route('/imagem/<int:produto_id>')
 def imagem_produto(produto_id):
-    """Serve a imagem binária de um produto."""
     try:
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("SELECT imagem FROM produtos WHERE id = %s", (produto_id,))
-        result = cur.fetchone()
-        if result and result[0]:
-            # JPEG é padrão, ajuste se usar outros formatos
-            return send_file(BytesIO(result[0]), mimetype='image/jpeg')
-        else:
-            flash("Imagem não encontrada.", "warning")
-            return '', 404
+        imagem = cur.fetchone()
+        if imagem and imagem[0]:
+            return send_file(BytesIO(imagem[0]), mimetype='image/jpeg')
+        return "Imagem não encontrada", 404
     except Exception as e:
-        current_app.logger.exception(f"Erro ao recuperar a imagem do produto {produto_id}")
-        return f"Erro ao recuperar a imagem: {e}", 500
+        return f"Erro: {e}", 500
     finally:
         if 'cur' in locals(): cur.close()
         if 'conn' in locals(): conn.close()
