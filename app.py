@@ -15,6 +15,9 @@ from routes.upload_csv import upload_csv_bp
 from routes.edit_produtos import edit_produtos_bp
 from routes.ver_produtos import ver_produtos_bp
 
+# OpenAI
+import openai
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "chave_secreta_upload")
 
@@ -91,9 +94,40 @@ def buscar_produto_detalhado(mensagem):
         print(f"Erro buscar produto detalhado: {e}")
     return None
 
+PROMPT_BASE = """
+Você é um atendente virtual da loja Semente Viva, especialista em produtos naturais.  
+Sempre cumpra as seguintes diretrizes:
+- Seja educado, breve e gentil
+- Nunca invente informações sobre os produtos -- só utilize o contexto dos produtos fornecido abaixo
+- Ajude o cliente a escolher baseado nas informações dos produtos disponíveis
+
+Produtos cadastrados disponíveis:
+{produtos_contexto}
+
+Mensagem do cliente: "{mensagem}"
+Responda de acordo com os produtos e informações acima.
+"""
+
 def get_gpt_response(mensagem):
-    # (Sua lógica IA. Mantenha o mock se não tiver OpenAI.)
-    return "Desculpe, não encontrei o produto que você procurou. Posso te ajudar com outra coisa?"
+    # IA do OpenAI, usando contexto real dos produtos da base
+    try:
+        produtos_contexto = gerar_contexto_csv()
+        prompt = PROMPT_BASE.format(produtos_contexto=produtos_contexto, mensagem=mensagem)
+        openai.api_key = os.environ.get("OPENAI_API_KEY")
+        completion = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",  # use outro modelo se necessário
+            messages=[
+                {"role": "system", "content": prompt}
+            ],
+            max_tokens=250,
+            temperature=0.7,
+        )
+        resposta = completion.choices[0].message['content'].strip()
+        print(f"[OPENAI DEBUG] Resposta IA: {resposta}")
+        return resposta
+    except Exception as e:
+        print(f"[OPENAI ERRO] Falha IA: {e}")
+        return "Desculpe, não consegui encontrar um produto que atenda sua necessidade. Posso te ajudar com outra coisa?"
 
 def salvar_conversa(sender_number, user_message, resposta_final):
     try:
@@ -120,7 +154,6 @@ def whatsapp_webhook():
         return Response("Dados insuficientes", status=400)
 
     resposta_final = None
-
     user_message_lower = user_message.lower()
 
     # Atalhos de comando
@@ -133,7 +166,7 @@ def whatsapp_webhook():
     elif user_message_lower in ["chá", "chás", "suplementos", "óleos", "veganos"]:
         resposta_final = listar_produtos_categoria(user_message_lower)
 
-    # Caso busca detalhada por produto (resposta com imagem)
+    # Busca detalhada por produto (resposta com imagem, se houver)
     if resposta_final is None:
         produto_detalhado = buscar_produto_detalhado(user_message)
         if produto_detalhado:
@@ -142,7 +175,6 @@ def whatsapp_webhook():
                 img_url = f"{RENDER_BASE_URL}/ver_produtos/imagem/{produto_detalhado['id']}"
             else:
                 img_url = None
-            # Envia resposta (com ou sem imagem)
             try:
                 send_whatsapp_message(
                     to_number=sender_number,
@@ -155,17 +187,16 @@ def whatsapp_webhook():
             salvar_conversa(sender_number, user_message, resposta_final)
             return Response(status=200)
 
-    # Brute force: busca qualquer produto por nome (csv)
+    # Busca por nome (todos os produtos contendo o termo)
     if resposta_final is None:
         resposta_csv = buscar_produto_csv(user_message)
         if resposta_csv:
             resposta_final = resposta_csv
 
-    # IA (fallback)
+    # IA (fallback com prompt customizado e contexto)
     if resposta_final is None:
         resposta_final = get_gpt_response(user_message)
 
-    # Envie a resposta padrão (fora do bloco de produto detalhado)
     try:
         send_whatsapp_message(
             to_number=sender_number,
