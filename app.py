@@ -3,6 +3,7 @@ import pandas as pd
 import psycopg2
 from flask import Flask, request, render_template, Response
 from datetime import datetime
+from sqlalchemy import create_engine
 
 # Importa utilitário Twilio
 from utils.twilio_utils import send_whatsapp_message
@@ -28,7 +29,16 @@ app.register_blueprint(ver_produtos_bp, url_prefix="/ver_produtos")
 
 RENDER_BASE_URL = "https://teste-bot-9ppl.onrender.com"
 
+def get_db_engine():
+    db_url = (
+        f"postgresql+psycopg2://{os.environ.get('DB_USER')}:"
+        f"{os.environ.get('DB_PASSWORD')}@{os.environ.get('DB_HOST')}:"
+        f"{os.environ.get('DB_PORT', 5432)}/{os.environ.get('DB_NAME')}"
+    )
+    return create_engine(db_url)
+
 def get_db_connection():
+    # Para operações manuais, como INSERT
     return psycopg2.connect(
         host=os.environ.get('DB_HOST'),
         database=os.environ.get('DB_NAME'),
@@ -39,12 +49,12 @@ def get_db_connection():
 
 def carregar_produtos_db():
     try:
-        conn = get_db_connection()
-        df = pd.read_sql("SELECT * FROM produtos", conn)
-        df.columns = [col.strip().lower() for col in df.columns]
-        df.fillna("", inplace=True)
-        df["nome"] = df["nome"].astype(str).str.lower()
-        conn.close()
+        engine = get_db_engine()
+        with engine.connect() as conn:
+            df = pd.read_sql("SELECT * FROM produtos", conn)
+            df.columns = [col.strip().lower() for col in df.columns]
+            df.fillna("", inplace=True)
+            df["nome"] = df["nome"].astype(str).str.lower()
         return df
     except Exception as e:
         print(f"Erro ao carregar produtos do banco: {e}")
@@ -95,7 +105,7 @@ def buscar_produto_detalhado(mensagem):
     return None
 
 PROMPT_BASE = """
-Você é um atendente virtual da loja Semente Viva, especialista em produtos naturais.  
+Você é um atendente virtual da loja Semente Viva, especialista em produtos naturais.
 Sempre cumpra as seguintes diretrizes:
 - Seja educado, breve e gentil
 - Nunca invente informações sobre os produtos -- só utilize o contexto dos produtos fornecido abaixo
