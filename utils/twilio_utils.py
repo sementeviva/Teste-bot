@@ -1,76 +1,37 @@
 import os
 from twilio.rest import Client
 
-# Carrega as credenciais do Twilio de variáveis de ambiente
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER")
-
-# Cria a instância do cliente Twilio
-client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-
 def send_whatsapp_message(to_number, body, media_url=None):
     """
-    Envia uma mensagem pelo WhatsApp usando Twilio.
-    Pode enviar com ou sem mídia.
-    - to_number: número do destinatário no formato '+5511999999999'
-    - body: texto da mensagem
-    - media_url: url da imagem ou mídia (opcional)
+    Envia mensagem WhatsApp pelo Twilio.
+    :param to_number: número do destinatário no formato 5599999999999 (sem 'whatsapp:')
+    :param body: texto da mensagem
+    :param media_url: url da mídia (imagem), ou None
+    :return: SID da mensagem (para debug), ou erro
     """
-    try:
-        # O formato do número no WhatsApp para Twilio é 'whatsapp:+55xxxxxxxxxx'
-        destination = f"whatsapp:{to_number}"
+    account_sid = os.environ.get('TWILIO_ACCOUNT_SID')
+    auth_token = os.environ.get('TWILIO_AUTH_TOKEN')
+    from_number = os.environ.get('TWILIO_WHATSAPP_NUMBER')  # Exemplo: whatsapp:+14155238886
 
-        # Prepara os parâmetros básicos
+    if not account_sid or not auth_token or not from_number:
+        raise Exception("Variáveis de ambiente Twilio não configuradas corretamente.")
+
+    client = Client(account_sid, auth_token)
+
+    # Garante formato correto do número
+    to = f"whatsapp:{to_number}" if not str(to_number).startswith("whatsapp:") else to_number
+
+    try:
         params = {
-            "from_": f"whatsapp:{TWILIO_WHATSAPP_NUMBER}",
             "body": body,
-            "to": destination
+            "from_": from_number,
+            "to": to
         }
-
-        # Adiciona URL da mídia se fornecida
         if media_url:
-            params["media_url"] = [media_url] if isinstance(media_url, str) else media_url
-
+            params["media_url"] = [media_url]
         message = client.messages.create(**params)
-        return {
-            "status": "success",
-            "sid": message.sid,
-            "to": to_number,
-            "body": body,
-            "media_url": media_url
-        }
+        print(f"[DEBUG Twilio] Mensagem enviada | SID: {message.sid} | Status: {message.status}")
+        return message.sid
     except Exception as e:
-        return {
-            "status": "error",
-            "error": str(e)
-        }
-
-def get_message_status(message_sid):
-    """
-    Consulta o status de uma mensagem específica enviada pelo Twilio.
-    - message_sid: SID retornado pelo envio da mensagem
-    """
-    try:
-        message = client.messages(message_sid).fetch()
-        return {
-            "status": message.status,
-            "from": message.from_,
-            "to": message.to,
-            "body": message.body
-        }
-    except Exception as e:
-        return {
-            "status": "error",
-            "error": str(e)
-        }
-
-# Exemplo prático de uso:
-if __name__ == "__main__":
-    # Envie teste para seu próprio número
-    TO_NUMBER = os.getenv("TEST_WHATSAPP_TO") # coloque '+5511999998888' nas env ou altere aqui
-    BODY = "Olá! Mensagem de teste do bot Semente Viva 🟢"
-    MEDIA = None  # Ou coloque uma URL de imagem, tipo "https://exemplo.com/imagem.jpg"
-
-    response = send_whatsapp_message(TO_NUMBER, BODY, MEDIA)
-    print(response)
+        print(f"[ERRO Twilio] Falha ao enviar mensagem: {e}")
+        raise
