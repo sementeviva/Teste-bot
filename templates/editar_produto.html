@@ -1,16 +1,24 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
 <head>
+    <meta charset="UTF-8">
     <title>Editar Produto</title>
 </head>
 <body>
-    <h1>Editar Produto</h1>
-    <form method="POST">
+    <h2>Editar Produto</h2>
+    <form method="post">
         Nome: <input type="text" name="nome" value="{{ produto.nome }}"><br>
         Preço: <input type="number" step="0.01" name="preco" value="{{ produto.preco }}"><br>
+        Categoria:
+        <select name="categoria">
+            {% for cat in categorias %}
+                <option value="{{ cat }}" {% if cat==produto.categoria %}selected{% endif %}>{{ cat }}</option>
+            {% endfor %}
+        </select><br>
         Descrição:<br>
-        <textarea name="descricao" rows="4" cols="50">{{ produto.descricao }}</textarea><br>
+        <textarea name="descricao">{{ produto.descricao }}</textarea><br>
         <button type="submit">Salvar</button>
     </form>
+    <a href="{{ url_for('ver_produtos_bp.ver_produtos') }}">Voltar</a>
 </body>
 </html>

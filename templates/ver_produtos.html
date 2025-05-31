@@ -1,122 +1,71 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-  <meta charset="UTF-8">
-  <title>Painel de Produtos</title>
-  <style>
-    img { width: 64px; height: auto;}
-    .inativo { opacity: 0.6;}
-  </style>
+    <meta charset="UTF-8">
+    <title>Produtos Cadastrados</title>
 </head>
 <body>
-  <h1>Painel de Produtos</h1>
-  <form id="produto-form" enctype="multipart/form-data">
-    <input type="hidden" id="produto-id">
-    <input type="text" id="nome" placeholder="Nome" required>
-    <input type="text" id="descricao" placeholder="Descrição">
-    <input type="number" step="0.01" id="preco" placeholder="Preço" required>
-    <input type="file" id="foto" accept="image/*">
-    <label>
-      <input type="checkbox" id="ativo" checked> Ativo no catálogo
-    </label>
-    <button type="submit">Salvar</button>
-    <button type="button" onclick="resetForm()">Novo</button>
-  </form>
-  <hr>
-  <table border="1">
-    <thead>
-      <tr>
-        <th>Foto</th>
-        <th>Nome</th>
-        <th>Descrição</th>
-        <th>Preço</th>
-        <th>Ativo</th>
-        <th>Ação</th>
-      </tr>
-    </thead>
-    <tbody id="tabela-produtos"></tbody>
-  </table>
-<script>
-async function carregarProdutos() {
-  const res = await fetch('/api/products');
-  const produtos = await res.json();
-  let html = '';
-  produtos.forEach(produto => {
-    html += `<tr${!produto.ativo ? ' class="inativo"' : ''}>
-      <td>${produto.foto ? `<img src="${produto.foto}">` : ''}</td>
-      <td>${produto.nome}</td>
-      <td>${produto.descricao || ''}</td>
-      <td>R$ ${produto.preco.toFixed(2)}</td>
-      <td>
-        <input type="checkbox" ${produto.ativo ? "checked" : ""} onchange="toggleAtivo(${produto.id}, this.checked)">
-      </td>
-      <td>
-        <button onclick="editarProduto(${produto.id})">Editar</button>
-      </td>
-    </tr>`;
-  });
-  document.getElementById('tabela-produtos').innerHTML = html;
-}
-carregarProdutos();
-
-async function toggleAtivo(id, ativo) {
-  await fetch(`/api/products/${id}/ativo`, {
-    method: 'PATCH',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ativo})
-  });
-  carregarProdutos();
-}
-
-async function editarProduto(id) {
-  const res = await fetch(`/api/products`);
-  const produtos = await res.json();
-  const produto = produtos.find(p => p.id === id);
-  document.getElementById('produto-id').value = produto.id;
-  document.getElementById('nome').value = produto.nome;
-  document.getElementById('descricao').value = produto.descricao;
-  document.getElementById('preco').value = produto.preco;
-  document.getElementById('ativo').checked = produto.ativo;
-}
-
-function resetForm() {
-  document.getElementById('produto-id').value = "";
-  document.getElementById('produto-form').reset();
-}
-
-document.getElementById('produto-form').onsubmit = async (e) => {
-  e.preventDefault();
-  const id = document.getElementById('produto-id').value;
-  const nome = document.getElementById('nome').value;
-  const descricao = document.getElementById('descricao').value;
-  const preco = document.getElementById('preco').value;
-  const ativo = document.getElementById('ativo').checked;
-  const fotoInput = document.getElementById('foto');
-
-  const formData = new FormData();
-  formData.append('nome', nome);
-  formData.append('descricao', descricao);
-  formData.append('preco', preco);
-  formData.append('ativo', ativo);
-
-  if (fotoInput.files.length) {
-    formData.append('foto', fotoInput.files[0]);
-  }
-
-  if (id) {
-    await fetch(`/api/products/${id}`, {
-      method: 'PUT',
-      body: formData
-    });
-  } else {
-    await fetch('/api/products', {
-      method: 'POST',
-      body: formData
-    });
-  }
-  resetForm();
-  carregarProdutos();
-};
-</script>
+    <h1>Produtos Cadastrados</h1>
+    <form method="get" action="{{ url_for('ver_produtos_bp.ver_produtos') }}">
+        Nome: <input type="text" name="nome" value="{{ nome_filtro }}">
+        Categoria:
+        <select name="categoria">
+            <option value="">Todas</option>
+            {% for categoria in categorias %}
+                <option value="{{ categoria }}" {% if categoria==categoria_filtro %}selected{% endif %}>{{ categoria }}</option>
+            {% endfor %}
+        </select>
+        Status:
+        <select name="ativo">
+            <option value="">Todos</option>
+            <option value="True" {% if ativo_filtro=='True' %}selected{% endif %}>Ativo</option>
+            <option value="False" {% if ativo_filtro=='False' %}selected{% endif %}>Inativo</option>
+        </select>
+        <button type="submit">Filtrar</button>
+    </form>
+    <hr>
+    <table border="1" cellpadding="5">
+        <thead>
+            <tr>
+                <th>Imagem</th>
+                <th>Nome</th>
+                <th>Preço</th>
+                <th>Categoria</th>
+                <th>Descrição</th>
+                <th>Status</th>
+                <th>Ações</th>
+                <th>Upload de Imagem</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for produto in produtos %}
+            <tr>
+                <td>
+                    {% if produto.imagem %}
+                        <img src="/{{ produto.imagem }}" width="64">
+                    {% else %}
+                        Sem imagem
+                    {% endif %}
+                </td>
+                <td>{{ produto.nome }}</td>
+                <td>R$ {{ produto.preco }}</td>
+                <td>{{ produto.categoria }}</td>
+                <td>{{ produto.descricao }}</td>
+                <td>{% if produto.ativo %}Ativo{% else %}Inativo{% endif %}</td>
+                <td>
+                    <a href="{{ url_for('ver_produtos_bp.editar_produto', id=produto.id) }}">Editar</a>
+                    |
+                    <a href="{{ url_for('ver_produtos_bp.ativar_produto', id=produto.id) }}">Ativar/Desativar</a>
+                </td>
+                <td>
+                    <form method="post" action="{{ url_for('ver_produtos_bp.upload_imagem', id=produto.id) }}" enctype="multipart/form-data">
+                        <input type="file" name="imagem" required>
+                        <button type="submit">Upload</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </body>
 </html>
