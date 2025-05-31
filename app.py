@@ -14,12 +14,12 @@ from routes.edit_produtos import edit_produtos_bp
 from routes.ver_produtos import ver_produtos_bp
 
 app = Flask(__name__)
-app.secret_key = "chave_secreta_upload"
+app.secret_key = os.environ.get("SECRET_KEY", "chave_secreta_upload")
 
-# Registre os blueprints só uma vez!
-app.register_blueprint(upload_csv_bp)
-app.register_blueprint(edit_produtos_bp)
-app.register_blueprint(ver_produtos_bp)
+# Registre os blueprints com prefixo para evitar conflitos de rota
+app.register_blueprint(upload_csv_bp, url_prefix="/upload")
+app.register_blueprint(edit_produtos_bp, url_prefix="/edit_produtos")
+app.register_blueprint(ver_produtos_bp, url_prefix="/ver_produtos")
 
 # Variáveis de ambiente
 openai_api_key = os.environ.get("OPENAI_API_KEY")
@@ -40,7 +40,7 @@ def get_db_connection():
         port=os.environ.get('DB_PORT', 5432)
     )
 
-# Carregar produtos do banco
+# Carregar produtos do banco sempre que necessário (não guardar no app)
 def carregar_produtos_db():
     try:
         conn = get_db_connection()
@@ -54,12 +54,11 @@ def carregar_produtos_db():
         print(f"Erro ao carregar produtos do banco: {e}")
         return pd.DataFrame(columns=["nome", "descricao", "preco", "categoria"])
 
-produtos_df = carregar_produtos_db()
-
 # Busca no catálogo
 def buscar_produto_csv(mensagem):
+    df = carregar_produtos_db()  # Sempre pega o mais atual!
     mensagem_lower = mensagem.lower()
-    resultados = produtos_df[produtos_df["nome"].str.contains(mensagem_lower)]
+    resultados = df[df["nome"].str.contains(mensagem_lower)]
     if not resultados.empty:
         respostas = []
         for _, row in resultados.iterrows():
@@ -69,15 +68,16 @@ def buscar_produto_csv(mensagem):
     return None
 
 def gerar_contexto_csv():
+    df = carregar_produtos_db()
     contextos = []
-    for _, row in produtos_df.iterrows():
+    for _, row in df.iterrows():
         contexto = f"{row['nome'].capitalize()} - R$ {row['preco']} - {row['descricao']}"
         contextos.append(contexto)
     return "\n".join(contextos)
 
-contexto_produtos = gerar_contexto_csv()
-
-def get_gpt_response(mensagem, contexto_produtos):
+# sempre gera contexto novo!
+def get_gpt_response(mensagem):
+    contexto_produtos = gerar_contexto_csv()
     prompt = f"""
 Você é um assistente virtual de vendas da loja Semente Viva, especializada em produtos naturais.
 
@@ -129,23 +129,29 @@ Mensagem do cliente: {mensagem}
 # Webhook WhatsApp
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp_webhook():
-    sender_number = request.form.get("From").replace("whatsapp:", "")
-    user_message = request.form.get("Body").strip().lower()
+    sender_number = request.form.get("From", "").replace("whatsapp:", "")
+    user_message = request.form.get("Body", "").strip()
 
-    if user_message in ["menu", "ver produtos", "produtos"]:
+    # Evita erro se não vier campo obrigatório
+    if not sender_number or not user_message:
+        return "Dados insuficientes", 400
+
+    user_message_lower = user_message.lower()
+
+    if user_message_lower in ["menu", "ver produtos", "produtos"]:
         resposta_final = listar_categorias()
-    elif user_message in ["carrinho", "ver carrinho"]:
+    elif user_message_lower in ["carrinho", "ver carrinho"]:
         resposta_final = ver_carrinho(sender_number)
     elif user_message.isdigit():
         resposta_final = adicionar_ao_carrinho(sender_number, int(user_message))
-    elif user_message in ["chá", "chás", "suplementos", "óleos", "veganos"]:
-        resposta_final = listar_produtos_categoria(user_message)
+    elif user_message_lower in ["chá", "chás", "suplementos", "óleos", "veganos"]:
+        resposta_final = listar_produtos_categoria(user_message_lower)
     else:
         resposta_csv = buscar_produto_csv(user_message)
         if resposta_csv:
             resposta_final = resposta_csv
         else:
-            resposta_final = get_gpt_response(user_message, contexto_produtos)
+            resposta_final = get_gpt_response(user_message)
 
     # Envia a resposta
     client_twilio.messages.create(
