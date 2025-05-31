@@ -2,88 +2,30 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Upload de Arquivo</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Upload de Produtos</title>
     <style>
-        html, body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            background: #f6f8fa;
-            margin: 0;
-            padding: 0;
-            height: 100%;
-        }
-        .container {
-            max-width: 400px;
-            margin: 48px auto;
-            padding: 30px 24px 20px 24px;
-            background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 4px 28px #0001;
-        }
-        .custom-file-upload {
-            display: inline-block;
-            padding: 10px 24px;
-            background-color: #36ad6a;
-            color: white;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: background 0.2s;
-            margin-bottom: 12px;
-        }
-        .custom-file-upload:hover {
-            background-color: #219150;
-        }
-        input[type="file"] {
-            display: none;
-        }
-        .feedback {
-            margin: 16px 0;
-            padding: 13px 12px;
-            background: #e8f7ef;
-            border-left: 4px solid #27ae60;
-            color: #2d8541;
-            border-radius: 3px;
-            display: none;
-        }
-        @media (max-width: 600px) {
-            .container {
-                width: 100%;
-                padding: 15px;
-            }
-        }
+        body {font-family: Arial, sans-serif; background: #f2f2f2; padding: 40px;}
+        .container {max-width: 400px; margin: auto; background: #fff; padding: 28px; border-radius: 10px;}
+        h2 {text-align:center;}
+        .flash-message {margin-bottom: 20px;}
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>Upload de Arquivo</h2>
-        <form method="POST" enctype="multipart/form-data" aria-describedby="fileHelp">
-            <!-- Supondo uso de Flask-WTF ou Django com CSRF -->
-            {{ form.csrf_token }}
-            <label class="custom-file-upload" for="csv_file">
-                Selecionar CSV ou Excel
-            </label>
-            <input type="file" id="csv_file" name="csv_file" accept=".csv, .xlsx" required>
-            <small id="fileHelp">Somente arquivos .csv ou .xlsx.</small>
-            <br><br>
-            <button type="submit">Enviar</button>
-        </form>
-        <div class="feedback" id="feedback"></div>
-    </div>
-    <script>
-        // Feedback visual
-        document.querySelector('form').addEventListener('submit', function (e) {
-            document.getElementById('feedback').style.display = "block";
-            document.getElementById('feedback').innerText = "Enviando arquivo...";
-        });
-        // Exibe nome do arquivo selecionado (opcional)
-        document.getElementById('csv_file').addEventListener('change', function () {
-            let name = this.files[0] ? this.files[0].name : '';
-            if (name)
-                document.querySelector('.custom-file-upload').innerText = "Selecionado: " + name;
-            else
-                document.querySelector('.custom-file-upload').innerText = "Selecionar CSV ou Excel";
-        });
-    </script>
+<div class="container">
+    <h2>Upload de Produtos</h2>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, msg in messages %}
+          <div class="flash-message alert alert-{{ category }}">{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    <form method="POST" enctype="multipart/form-data">
+        {{ form.csrf_token }}
+        {{ form.file.label }}<br>
+        {{ form.file() }}<br><br>
+        {{ form.submit() }}
+    </form>
+</div>
 </body>
 </html>
