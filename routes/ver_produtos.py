@@ -1,14 +1,14 @@
 from flask import (
-    Blueprint, render_template, request, jsonify, send_file, current_app, flash
+    Blueprint, render_template, request, jsonify,
+    current_app, flash, Response
 )
 import psycopg2
 import os
-from io import BytesIO
 
 ver_produtos_bp = Blueprint('ver_produtos', __name__, template_folder='../templates')
 
 def get_db_connection():
-    # Ajuste para seu ambiente!
+    # Ajuste para seu ambiente de produção/local!
     return psycopg2.connect(
         host=os.environ.get('DB_HOST'),
         database=os.environ.get('DB_NAME'),
@@ -17,7 +17,7 @@ def get_db_connection():
         port=os.environ.get('DB_PORT', 5432)
     )
 
-# Página de listagem/edição
+# Página de listagem e edição dos produtos
 @ver_produtos_bp.route('/ver_produtos/', methods=['GET'])
 def ver_produtos():
     try:
@@ -36,7 +36,7 @@ def ver_produtos():
         if 'conn' in locals(): conn.close()
     return render_template('ver_produtos.html', produtos=produtos, categorias=categorias_unicas)
 
-# Atualização inline (nome, preco, descricao, categoria, ativo)
+# Edição inline dos produtos
 @ver_produtos_bp.route('/editar_produto/', methods=['POST'])
 def editar_produto():
     data = request.get_json()
@@ -67,7 +67,7 @@ def editar_produto():
         if 'cur' in locals(): cur.close()
         if 'conn' in locals(): conn.close()
 
-# Upload de imagem
+# Upload de imagem do produto
 @ver_produtos_bp.route('/upload_imagem/<int:produto_id>', methods=['POST'])
 def upload_imagem(produto_id):
     if 'imagem' not in request.files:
@@ -80,14 +80,14 @@ def upload_imagem(produto_id):
         cur = conn.cursor()
         cur.execute("UPDATE produtos SET imagem = %s WHERE id = %s", (psycopg2.Binary(file.read()), produto_id))
         conn.commit()
-        return jsonify({'success': True, 'message': 'Imagem enviada!'})
+        return jsonify({'success': True, 'message': 'Imagem enviada com sucesso!'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
     finally:
         if 'cur' in locals(): cur.close()
         if 'conn' in locals(): conn.close()
 
-# Visualização da imagem
+# Visualização da imagem do produto
 @ver_produtos_bp.route('/imagem/<int:produto_id>')
 def imagem_produto(produto_id):
     try:
@@ -96,7 +96,7 @@ def imagem_produto(produto_id):
         cur.execute("SELECT imagem FROM produtos WHERE id = %s", (produto_id,))
         imagem = cur.fetchone()
         if imagem and imagem[0]:
-            return send_file(BytesIO(imagem[0]), mimetype='image/jpeg')
+            return Response(imagem[0], mimetype='image/jpeg')
         return "Imagem não encontrada", 404
     except Exception as e:
         return f"Erro: {e}", 500
