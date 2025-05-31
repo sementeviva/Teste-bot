@@ -3,79 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <title>Produtos Cadastrados</title>
-    <style>
-        body { font-family: Arial, sans-serif; }
-        table { border-collapse: collapse; width: 100%; }
-        th, td { padding: 8px 10px; text-align: left; }
-        th { background: #f2f2f2; }
-        tr:nth-child(even) { background: #fafafa; }
-        img { border-radius: 4px; }
-        form.inline { display: inline; }
-    </style>
 </head>
 <body>
     <h1>Produtos Cadastrados</h1>
-    <form method="get" action="{{ url_for('ver_produtos_bp.ver_produtos') }}">
-        <label>Nome:</label>
-        <input type="text" name="nome" value="{{ nome_filtro|default('') }}">
-        <label>Categoria:</label>
-        <select name="categoria">
-            <option value="">Todas</option>
-            {% for categoria in categorias %}
-                <option value="{{ categoria }}" {% if categoria==categoria_filtro %}selected{% endif %}>{{ categoria }}</option>
-            {% endfor %}
-        </select>
-        <label>Status:</label>
-        <select name="ativo">
-            <option value="">Todos</option>
-            <option value="True" {% if ativo_filtro=='True' %}selected{% endif %}>Ativo</option>
-            <option value="False" {% if ativo_filtro=='False' %}selected{% endif %}>Inativo</option>
-        </select>
+    <form method="get" action="{{ url_for('ver_produtos.ver_produtos') }}">
+        <input type="text" name="nome" placeholder="Filtrar por nome" value="{{request.args.get('nome','')}}">
+        <input type="text" name="categoria" placeholder="Filtrar por categoria" value="{{request.args.get('categoria','')}}">
+        <input type="text" name="status" placeholder="Status" value="{{request.args.get('status','')}}">
         <button type="submit">Filtrar</button>
     </form>
     <hr>
-    <table border="1">
+    <table border="1" cellpadding="8" cellspacing="0">
         <thead>
             <tr>
-                <th>Imagem</th>
+                <th>ID</th>
                 <th>Nome</th>
-                <th>Preço</th>
                 <th>Categoria</th>
                 <th>Descrição</th>
+                <th>Preço</th>
                 <th>Status</th>
+                <th>Imagem</th>
                 <th>Ações</th>
-                <th>Upload de Imagem</th>
             </tr>
         </thead>
         <tbody>
-            {% for produto in produtos %}
+            {% for p in produtos %}
             <tr>
+                <td>{{ p.id }}</td>
+                <td>{{ p.nome }}</td>
+                <td>{{ p.categoria }}</td>
+                <td>{{ p.descricao }}</td>
+                <td>{{ p.preco }}</td>
+                <td>{{ p.status }}</td>
                 <td>
-                    {% if produto.imagem %}
-                        <img src="/{{ produto.imagem }}" width="64" alt="{{ produto.nome }}">
+                    {% if p.imagem_url %}
+                        <img src="{{ p.imagem_url }}" alt="Imagem" width="100">
                     {% else %}
                         Sem imagem
                     {% endif %}
                 </td>
-                <td>{{ produto.nome }}</td>
-                <td>R$ {{ produto.preco }}</td>
-                <td>{{ produto.categoria }}</td>
-                <td>{{ produto.descricao }}</td>
-                <td>{% if produto.ativo %}Ativo{% else %}Inativo{% endif %}</td>
                 <td>
-                    <a href="{{ url_for('ver_produtos_bp.editar_produto', id=produto.id) }}">Editar</a> |
-                    <a href="{{ url_for('ver_produtos_bp.ativar_produto', id=produto.id) }}">Ativar/Desativar</a>
-                </td>
-                <td>
-                    <form method="post" action="{{ url_for('ver_produtos_bp.upload_imagem', id=produto.id) }}" enctype="multipart/form-data" class="inline">
+                    <form method="post" action="{{ url_for('ver_produtos.upload_imagem', produto_id=p.id) }}" enctype="multipart/form-data">
                         <input type="file" name="imagem" required>
                         <button type="submit">Upload</button>
                     </form>
                 </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="8" style="text-align:center">Nenhum produto encontrado.</td>
             </tr>
             {% endfor %}
         </tbody>
