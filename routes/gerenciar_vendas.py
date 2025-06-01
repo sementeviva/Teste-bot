@@ -1,37 +1,46 @@
 # routes/gerenciar_vendas.py
 from flask import Blueprint, render_template, jsonify
 from utils.db_utils import get_db_connection
-from datetime import datetime # Importe datetime para formatar a data/hora
+from datetime import datetime
 
 gerenciar_vendas_bp = Blueprint('gerenciar_vendas_bp', __name__, template_folder='../templates')
 
 @gerenciar_vendas_bp.route('/')
 def gerenciar_vendas():
-    """Renderiza a página de gerenciamento de vendas."""
     return render_template('gerenciar_vendas.html')
 
 @gerenciar_vendas_bp.route('/api/vendas')
 def api_vendas():
-    """Fornece os dados de vendas em formato JSON para atualização em tempo real."""
     conn = None
     vendas = []
     try:
         conn = get_db_connection()
         with conn.cursor() as cur:
-            # Seleciona todas as colunas da tabela 'vendas' e ordena pela data/hora mais recente
-            # A coluna 'imagem' não existe na tabela 'vendas', então a removi da SELECT
-            cur.execute("SELECT id, data_hora, cliente_id, produtos_vendidos, valor_total, status FROM vendas ORDER BY data_hora DESC")
+            # Consulta SQL com JOIN para obter o nome do cliente
+            cur.execute("""
+                SELECT
+                    v.id,
+                    v.data_hora,
+                    c.nome AS nome_cliente, -- Agora selecionamos o nome do cliente
+                    v.produtos_vendidos,
+                    v.valor_total,
+                    v.status
+                FROM
+                    vendas v
+                JOIN
+                    clientes c ON v.cliente_id = c.id -- Fazemos o JOIN com a tabela clientes
+                ORDER BY
+                    v.data_hora DESC
+            """)
             vendas_db = cur.fetchall()
 
             for venda in vendas_db:
-                # Converte a tupla para um dicionário para facilitar a manipulação no JSON
-                # e formata a data/hora para um formato legível
                 vendas.append({
                     'id': venda[0],
                     'data_hora': venda[1].strftime('%Y-%m-%d %H:%M:%S') if isinstance(venda[1], datetime) else str(venda[1]),
-                    'cliente_id': venda[2],
+                    'nome_cliente': venda[2], # Usamos 'nome_cliente' aqui
                     'produtos_vendidos': venda[3],
-                    'valor_total': str(venda[4]), # Converter DECIMAL para string para evitar problemas de serialização JSON
+                    'valor_total': str(venda[4]),
                     'status': venda[5]
                 })
         return jsonify(vendas)
