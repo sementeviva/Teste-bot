@@ -127,11 +127,29 @@
         </table>
     </div>
 
+    <!-- Modal para mensagens - NOVO CÓDIGO -->
+    <div class="modal fade" id="mensagemModal" tabindex="-1" aria-labelledby="mensagemModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="mensagemModalLabel">Mensagem</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <span id="modalMensagem"></span> <!-- Onde a mensagem será exibida -->
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Inclua Bootstrap JS aqui (bundle inclui Popper) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-    // AJAX para salvar edição
+    // AJAX para salvar edição - FUNÇÃO ATUALIZADA
     function salvar(id) {
         const nome = document.getElementById('nome-' + id).value;
         const preco = document.getElementById('preco-' + id).value;
@@ -147,15 +165,28 @@
         })
         .then(res => res.json())
         .then(data => {
-            const mensagem = document.getElementById('mensagem');
-            mensagem.textContent = data.message;
-            mensagem.className = 'message ' + (data.success ? 'success' : 'error');
+            // Remove a classe 'message' e 'success'/'error' do div 'mensagem'
+            // pois agora usaremos o modal
+            const mensagemDiv = document.getElementById('mensagem');
+            mensagemDiv.textContent = '';
+            mensagemDiv.className = 'message'; // Reseta as classes
+
+            // Exibe o modal com a mensagem de sucesso ou erro
+            const modal = new bootstrap.Modal(document.getElementById('mensagemModal'));
+            document.getElementById('modalMensagem').textContent = data.message; // Define a mensagem no modal
+            modal.show(); // Exibe o modal
         })
         .catch(error => {
             console.error('Erro ao salvar:', error); // Log do erro para depuração
-            const mensagem = document.getElementById('mensagem');
-            mensagem.textContent = 'Erro ao salvar. Verifique o console para detalhes.';
-            mensagem.className = 'message error';
+            // Remove as classes de mensagem do div 'mensagem'
+            const mensagemDiv = document.getElementById('mensagem');
+            mensagemDiv.textContent = '';
+            mensagemDiv.className = 'message'; // Reseta as classes
+
+            // Exibe o modal com a mensagem de erro padrão
+            const modal = new bootstrap.Modal(document.getElementById('mensagemModal'));
+            document.getElementById('modalMensagem').textContent = 'Erro ao salvar. Verifique o console para detalhes.'; // Define a mensagem de erro no modal
+            modal.show(); // Exibe o modal
         });
     }
 
