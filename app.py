@@ -7,35 +7,34 @@ from datetime import datetime
 
 # Importa o utilitário Twilio centralizado
 from utils.twilio_utils import send_whatsapp_message
-from utils.fluxo_vendas import listar_categorias, listar_produtos_categoria, adicionar_ao_carrinho, ver_carrinho
+# ATUALIZADO: Importe as novas funções do fluxo de vendas
+from utils.fluxo_vendas import listar_categorias, listar_produtos_categoria, adicionar_ao_carrinho, ver_carrinho, finalizar_compra 
 # IMPORTANTE: A função get_db_connection E salvar_conversa DEVEM SER IMPORTADAS de um módulo centralizado
-from utils.db_utils import get_db_connection, salvar_conversa # <--- CORREÇÃO 3: IMPORTA SALVAR_CONVERSA TAMBÉM
+from utils.db_utils import get_db_connection, salvar_conversa 
 
-# Blueprints
+# Blueprints (permanecem inalterados)
 from routes.upload_csv import upload_csv_bp
 from routes.edit_produtos import edit_produtos_bp
 from routes.ver_produtos import ver_produtos_bp
-from routes.ver_conversas import ver_conversas_bp # <--- CORREÇÃO 2: IMPORTA O BLUEPRINT DE CONVERSAS
+from routes.ver_conversas import ver_conversas_bp 
 from routes.gerenciar_vendas import gerenciar_vendas_bp
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "chave_secreta_upload")
 
-# Registre os blueprints (TODOS eles)
+# Registre os blueprints (permanecem inalterados)
 app.register_blueprint(upload_csv_bp, url_prefix="/upload")
 app.register_blueprint(edit_produtos_bp, url_prefix="/edit_produtos")
 app.register_blueprint(ver_produtos_bp, url_prefix="/ver_produtos")
-app.register_blueprint(ver_conversas_bp, url_prefix="/ver_conversas") # <--- CORREÇÃO 2: REGISTRA O BLUEPRINT DE CONVERSAS
+app.register_blueprint(ver_conversas_bp, url_prefix="/ver_conversas") 
 app.register_blueprint(gerenciar_vendas_bp, url_prefix='/gerenciar_vendas')
 
-# Variáveis de ambiente
+# Variáveis de ambiente (permanecem inalterados)
 openai_api_key = os.environ.get("OPENAI_API_KEY")
 RENDER_BASE_URL = "https://teste-bot-9ppl.onrender.com"  # Seu domínio público do Render
 client_openai = OpenAI(api_key=openai_api_key)
 
-# As funções get_db_connection e salvar_conversa foram movidas para utils/db_utils.py (Melhoria 2 e 4)
-# Código anterior de get_db_connection e salvar_conversa removido daqui.
-
+# Funções de DB e OpenAI (permanecem inalterados)
 def carregar_produtos_db():
     try:
         conn = get_db_connection()
@@ -49,7 +48,6 @@ def carregar_produtos_db():
         print(f"Erro ao carregar produtos do banco: {e}")
         return pd.DataFrame(columns=["nome", "descricao", "preco", "categoria"])
 
-# Funções renomeadas para refletir o uso do banco de dados (Melhoria 3)
 def buscar_produto_no_db(mensagem):
     df = carregar_produtos_db()
     mensagem_lower = mensagem.lower()
@@ -92,7 +90,7 @@ def buscar_produto_detalhado(mensagem):
             }
     except Exception as e:
         print(f"Erro buscar produto detalhado: {e}")
-        return None # Importante retornar None em caso de erro
+        return None 
 
 def get_gpt_response(mensagem):
     contexto_produtos = gerar_contexto_do_db()
@@ -138,109 +136,97 @@ Mensagem do cliente: {mensagem}
     return response.choices[0].message.content.strip()
 
 # =========================
-# ROTAS PARA IMAGEM PRODUTO - REMOVIDAS DE APP.PY (Melhoria 1)
-# ELAS ESTÃO AGORA APENAS NO BLUEPRINT ver_produtos_bp
-# =========================
-
-# =========================
-# Webhook WhatsApp
+# Webhook WhatsApp - Lógica do carrinho integrada aqui
 # =========================
 
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp_webhook():
     sender_number = request.form.get("From", "").replace("whatsapp:", "")
     user_message = request.form.get("Body", "").strip()
+    user_message_lower = user_message.lower()
+
     if not sender_number or not user_message:
         return "Dados insuficientes", 400
 
-    user_message_lower = user_message.lower()
+    resposta_final = "" # Inicializa a resposta final
 
-    # Atalhos para menu/carrinho/categoria
+    # --- Lógica do Carrinho ---
     if user_message_lower in ["menu", "ver produtos", "produtos"]:
         resposta_final = listar_categorias()
-        send_whatsapp_message(
-            to_number=sender_number,
-            body=resposta_final
-        )
-        salvar_conversa(sender_number, user_message, resposta_final)
-        return "OK", 200
-
+    
+    # NOVO: Comando para adicionar produtos ao carrinho
+    elif user_message_lower.startswith('add '):
+        parts = user_message_lower.split()
+        if len(parts) == 3:
+            try:
+                prod_id = int(parts[1])
+                quantidade = int(parts[2])
+                resposta_final = adicionar_ao_carrinho(sender_number, prod_id, quantidade)
+            except ValueError:
+                resposta_final = "Formato inválido para adicionar. Use 'add <ID do produto> <quantidade>'. Ex: 'add 1 2'"
+        else:
+            resposta_final = "Formato inválido para adicionar. Use 'add <ID do produto> <quantidade>'. Ex: 'add 1 2'"
+    
     elif user_message_lower in ["carrinho", "ver carrinho"]:
         resposta_final = ver_carrinho(sender_number)
-        send_whatsapp_message(
-            to_number=sender_number,
-            body=resposta_final
-        )
-        salvar_conversa(sender_number, user_message, resposta_final)
-        return "OK", 200
-
-    elif user_message.isdigit():
-        resposta_final = adicionar_ao_carrinho(sender_number, int(user_message))
-        send_whatsapp_message(
-            to_number=sender_number,
-            body=resposta_final
-        )
-        salvar_conversa(sender_number, user_message, resposta_final)
-        return "OK", 200
-
-    elif user_message_lower in ["chá", "chás", "suplementos", "óleos", "veganos"]:
+    
+    # NOVO: Comando para finalizar a compra
+    elif user_message_lower == 'finalizar':
+        resposta_final = finalizar_compra(sender_number)
+    
+    # --- Lógica de Categorias (se não for comando de carrinho) ---
+    # Verifica se a mensagem é um nome de categoria existente
+    elif user_message_lower in ["chá", "chás", "suplementos", "óleos", "veganos"]: # Ajuste conforme suas categorias
         resposta_final = listar_produtos_categoria(user_message_lower)
+
+    # --- Lógica de Busca de Produto Detalhado (via ID ou Nome) ---
+    # Se nenhuma das lógicas acima foi ativada, tenta buscar produto detalhado
+    if not resposta_final: # Se resposta_final ainda está vazia, significa que não foi um comando de carrinho ou categoria
+        produto_detalhado = buscar_produto_detalhado(user_message)
+
+        if produto_detalhado:
+            resposta_final = (
+                f"{produto_detalhado['nome'].capitalize()} - R$ {produto_detalhado['preco']:.2f}\n" # Formata preço
+                f"{produto_detalhado['descricao']}\n"
+                "Confira a imagem do produto abaixo." if produto_detalhado["tem_imagem"] else ""
+            )
+            if produto_detalhado["tem_imagem"]:
+                img_url = f"{RENDER_BASE_URL}/ver_produtos/imagem/{produto_detalhado['id']}"
+                send_whatsapp_message(
+                    to_number=sender_number,
+                    body=resposta_final,
+                    media_url=img_url
+                )
+                salvar_conversa(sender_number, user_message, resposta_final) # Salva a conversa aqui
+                return "OK", 200 # Termina a execução se enviou imagem
+            # Se não tem imagem, a resposta será enviada no bloco final
+        
+        # --- Lógica de Busca por Nome ou GPT ---
+        # Se ainda não gerou uma resposta, tenta buscar por nome ou usa GPT
+        if not resposta_final: # Se resposta_final ainda está vazia
+            resposta_db = buscar_produto_no_db(user_message)
+            if resposta_db:
+                resposta_final = resposta_db
+            else:
+                resposta_final = get_gpt_response(user_message)
+
+    # --- Envio da Mensagem Final ---
+    if resposta_final: # Garante que há uma resposta para enviar
         send_whatsapp_message(
             to_number=sender_number,
             body=resposta_final
         )
         salvar_conversa(sender_number, user_message, resposta_final)
-        return "OK", 200
-
-    # NOVO: resposta para consultas por produto com envio de imagem
-    produto_detalhado = buscar_produto_detalhado(user_message)
-
-    if produto_detalhado:
-        resposta_final = (
-            f"{produto_detalhado['nome'].capitalize()} - R$ {produto_detalhado['preco']}\n"
-            f"{produto_detalhado['descricao']}\n"
-            "Confira a imagem do produto abaixo." if produto_detalhado["tem_imagem"] else ""
-        )
-        if produto_detalhado["tem_imagem"]:
-            # A URL da imagem agora aponta para o Blueprint ver_produtos_bp
-            img_url = f"{RENDER_BASE_URL}/ver_produtos/imagem/{produto_detalhado['id']}"
-            send_whatsapp_message(
-                to_number=sender_number,
-                body=resposta_final,
-                media_url=img_url
-            )
-        else:
-            send_whatsapp_message(
-                to_number=sender_number,
-                body=resposta_final
-            )
-        salvar_conversa(sender_number, user_message, resposta_final)
-        return "OK", 200
-
-    # Caso não encontre produto, segue fluxo padrão com busca por nome ou IA
-    resposta_db = buscar_produto_no_db(user_message)
-    if resposta_db:
+    else: # Fallback caso nenhuma lógica gere resposta
         send_whatsapp_message(
             to_number=sender_number,
-            body=resposta_db
+            body="Desculpe, não consegui processar sua solicitação. Por favor, tente novamente."
         )
-        resposta_final = resposta_db
-    else:
-        resposta_final = get_gpt_response(user_message)
-        send_whatsapp_message(
-            to_number=sender_number,
-            body=resposta_final
-        )
-
-    salvar_conversa(sender_number, user_message, resposta_final)
+        salvar_conversa(sender_number, user_message, "Erro: Sem resposta gerada.")
+    
     return "OK", 200
 
-# <--- CORREÇÃO 1: ROTA /conversas REMOVIDA DE APP.PY
-# Ela agora é gerenciada EXCLUSIVAMENTE pelo Blueprint ver_conversas_bp em routes/ver_conversas.py
-# @app.route("/conversas", methods=["GET", "POST"])
-# def ver_conversas():
-#     # ... (código removido) ...
-
+# Rotas do painel (permanecem inalteradas)
 @app.route("/")
 def home():
     return render_template("index.html")
