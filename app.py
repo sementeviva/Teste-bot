@@ -16,6 +16,7 @@ from routes.upload_csv import upload_csv_bp
 from routes.edit_produtos import edit_produtos_bp
 from routes.ver_produtos import ver_produtos_bp
 from routes.ver_conversas import ver_conversas_bp # <--- CORREÇÃO 2: IMPORTA O BLUEPRINT DE CONVERSAS
+from routes.gerenciar_vendas import gerenciar_vendas_bp
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "chave_secreta_upload")
@@ -25,6 +26,7 @@ app.register_blueprint(upload_csv_bp, url_prefix="/upload")
 app.register_blueprint(edit_produtos_bp, url_prefix="/edit_produtos")
 app.register_blueprint(ver_produtos_bp, url_prefix="/ver_produtos")
 app.register_blueprint(ver_conversas_bp, url_prefix="/ver_conversas") # <--- CORREÇÃO 2: REGISTRA O BLUEPRINT DE CONVERSAS
+app.register_blueprint(gerenciar_vendas_bp, url_prefix='/gerenciar_vendas')
 
 # Variáveis de ambiente
 openai_api_key = os.environ.get("OPENAI_API_KEY")
