@@ -75,6 +75,14 @@
             </a>
         </div>
 
+        <!-- Filtro de Busca - NOVO -->
+        <div class="mb-3">
+            <div class="input-group">
+                <input type="text" id="filtroNome" class="form-control" placeholder="Buscar por nome..." value="{{ nome_filtro }}">
+                <button onclick="filtrarProdutos()" class="btn btn-primary">Filtrar</button>
+            </div>
+        </div>
+
         <!-- Mensagens de sucesso/erro (mantidas com seu estilo original, mas podem ser adaptadas para alerts Bootstrap) -->
         <div id="mensagem" class="message"></div>
 
@@ -119,7 +127,8 @@
                         <input type="checkbox" id="ativo-{{ produto[0] }}" {% if produto[6] %}checked{% endif %} class="form-check-input">
                     </td>
                     <td>
-                        <button onclick="salvar({{ produto[0] }})" class="btn btn-sm btn-info">Salvar</button>
+                        <button onclick="salvar({{ produto[0] }})" class="btn btn-sm btn-info me-2">Salvar</button>
+                        <button onclick="excluirProduto({{ produto[0] }})" class="btn btn-sm btn-danger">Excluir</button> <!-- NOVO BOTÃO EXCLUIR -->
                     </td>
                 </tr>
                 {% endfor %}
@@ -149,7 +158,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-    // AJAX para salvar edição - FUNÇÃO ATUALIZADA
+    // AJAX para salvar edição
     function salvar(id) {
         const nome = document.getElementById('nome-' + id).value;
         const preco = document.getElementById('preco-' + id).value;
@@ -225,6 +234,38 @@
             mensagem.className = 'message error';
         });
         return false;
+    }
+
+    // Função para Filtrar Produtos - NOVO
+    function filtrarProdutos() {
+        const filtroNome = document.getElementById('filtroNome').value;
+        // Redireciona para a mesma página, adicionando o parâmetro 'nome' na URL
+        window.location.href = `{{ url_for('ver_produtos_bp.ver_produtos') }}?nome=${filtroNome}`;
+    }
+
+    // Função para Excluir Produto - NOVO
+    function excluirProduto(id) {
+        if (confirm('Tem certeza que deseja excluir este produto?')) {
+            fetch(`/ver_produtos/excluir/${id}`, { // Usa a rota de exclusão no backend
+                method: 'POST' // Ou 'DELETE' se você mudar o método da rota no Python
+            })
+            .then(res => res.json())
+            .then(data => {
+                const modal = new bootstrap.Modal(document.getElementById('mensagemModal'));
+                document.getElementById('modalMensagem').textContent = data.message;
+                modal.show(); // Exibe o modal com a mensagem
+                if (data.success) {
+                    // Remove a linha da tabela se a exclusão foi bem-sucedida
+                    document.getElementById(`row-${id}`).remove();
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao excluir:', error);
+                const modal = new bootstrap.Modal(document.getElementById('mensagemModal'));
+                document.getElementById('modalMensagem').textContent = 'Erro ao excluir o produto. Verifique o console para detalhes.';
+                modal.show();
+            });
+        }
     }
     </script>
 </body>
