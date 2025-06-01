@@ -149,7 +149,7 @@
         });
     }
 
-    // AJAX para upload de imagem - SOLUÇÃO FINAL PARA O PROBLEMA DE ID
+    // AJAX para upload de imagem - SOLUÇÃO DEFINITIVA
     function enviarImagem(event, id) {
         event.preventDefault();
         const form = event.target;
@@ -161,13 +161,13 @@
         const formData = new FormData();
         formData.append('imagem', fileInput.files[0]);
 
-        // GERA A URL BASE SEM O ID NO FINAL, POIS O CONVERSOR É INT
-        // Exemplo de saída: /ver_produtos/upload_imagem/
-        const baseUrl = '{{ url_for("ver_produtos_bp.upload_imagem", produto_id="") }}';
+        // GERA A URL BASE SEM O PRODUTO_ID, POIS A ROTA EXIGE UM INT.
+        // A url_for APENAS GERA A PARTE FIXA: /ver_produtos/upload_imagem
+        const baseUrl = '{{ url_for("ver_produtos_bp.upload_imagem") }}';
         
-        // CONCATENA O ID NO JAVASCRIPT, APÓS A GERAÇÃO DA URL PELO FLASK
-        // Exemplo de saída: /ver_produtos/upload_imagem/123
-        const uploadUrl = baseUrl + id;
+        // CONSTRÓI A URL COMPLETA NO JAVASCRIPT, CONCATENANDO O ID REAL.
+        // Isso resulta em algo como: /ver_produtos/upload_imagem/123
+        const uploadUrl = baseUrl + '/' + id;
 
         fetch(uploadUrl, {
             method: 'POST',
