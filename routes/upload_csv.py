@@ -4,7 +4,7 @@ from .forms import UploadCSVForm   # Importa o formulário
 import os
 import pandas as pd
 
-upload_csv_bp = Blueprint('upload_csv', __name__, template_folder='../templates')
+upload_csv_bp = Blueprint('upload_csv_bp', __name__, template_folder='../templates')
 
 @upload_csv_bp.route('/upload/', methods=['GET', 'POST'])
 def upload_csv():
