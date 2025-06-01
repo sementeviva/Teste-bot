@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app # <--- AQUI: Adicionado 'current_app'
 # IMPORTANTE: Removido o 'import psycopg2' e 'import os' daqui
 # A função get_db_connection será importada do módulo centralizado
 from utils.db_utils import get_db_connection # Importa a função de conexão centralizada
