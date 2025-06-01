@@ -1,0 +1,96 @@
+<!-- templates/gerenciar_vendas.html -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciar Vendas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script> <!-- Usaremos Axios para as chamadas AJAX -->
+    <style>
+        body {
+            padding-top: 20px;
+        }
+        .container {
+            max-width: 1200px;
+        }
+        .table-responsive {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Gerenciar Vendas</h1>
+            <a href="{{ url_for('home') }}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left-circle me-2"></i> Voltar ao Painel
+            </a>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>ID da Venda</th>
+                        <th>Data/Hora</th>
+                        <th>ID do Cliente</th>
+                        <th>Produtos Vendidos</th>
+                        <th>Valor Total</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="vendas-tbody">
+                    <!-- As vendas serão carregadas aqui via JavaScript -->
+                    <tr>
+                        <td colspan="6" class="text-center">Carregando vendas...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function atualizarVendas() {
+            axios.get('/gerenciar_vendas/api/vendas') // Caminho da API no seu Blueprint
+                .then(response => {
+                    const vendas = response.data;
+                    const tbody = document.getElementById('vendas-tbody');
+                    tbody.innerHTML = ''; // Limpa a tabela antes de adicionar novas linhas
+
+                    if (vendas.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="6" class="text-center">Nenhuma venda encontrada.</td></tr>';
+                        return;
+                    }
+
+                    vendas.forEach(venda => {
+                        const row = `
+                            <tr>
+                                <td>${venda.id}</td>
+                                <td>${venda.data_hora}</td>
+                                <td>${venda.cliente_id}</td>
+                                <td>${venda.produtos_vendidos}</td>
+                                <td>R$ ${parseFloat(venda.valor_total).toFixed(2).replace('.', ',')}</td>
+                                <td>${venda.status}</td>
+                            </tr>
+                        `;
+                        tbody.innerHTML += row;
+                    });
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar vendas:', error);
+                    const tbody = document.getElementById('vendas-tbody');
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Erro ao carregar vendas.</td></tr>';
+                });
+        }
+
+        // Chama a função para carregar vendas quando a página é carregada
+        document.addEventListener('DOMContentLoaded', atualizarVendas);
+
+        // Atualiza as vendas a cada 5 segundos (5000 milissegundos)
+        setInterval(atualizarVendas, 5000);
+    </script>
+</body>
+</html>
