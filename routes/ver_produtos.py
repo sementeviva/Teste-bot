@@ -1,96 +1,92 @@
-from flask import (
-    Blueprint, render_template, request, jsonify,
-    current_app, flash, Response
-)
-# IMPORTANTE: Removido o 'import psycopg2' e 'import os' daqui, pois não são mais necessários diretamente
-# E a função get_db_connection será importada do módulo centralizado
-
-# Importa a função de conexão do banco de dados centralizada (Melhoria 2)
+from flask import Blueprint, render_template, request, jsonify # Adicionado 'request' e 'jsonify'
 from utils.db_utils import get_db_connection
 
-# Renomeado o objeto Blueprint para consistência com app.py
 ver_produtos_bp = Blueprint('ver_produtos_bp', __name__, template_folder='../templates')
 
-# Removido get_db_connection() daqui (Melhoria 2)
-
-# Página de listagem e edição dos produtos
-@ver_produtos_bp.route('/', methods=['GET']) # Rota simplificada para '/' dentro do Blueprint
+@ver_produtos_bp.route('/', methods=['GET'])
 def ver_produtos():
-    conn = None # Inicializa conn para garantir que esteja definida
+    conn = None
+    produtos = []
+    categorias_unicas = []
+    nome_filtro = request.args.get('nome', '') # Pega o valor do filtro de nome da URL
+
     try:
         conn = get_db_connection()
-        # Usando 'with' para garantir que o cursor seja fechado
         with conn.cursor() as cur:
-            cur.execute("SELECT id, nome, preco, descricao, categoria, imagem, ativo FROM produtos")
-            produtos = cur.fetchall()
-            categorias_unicas = sorted({p[4] for p in produtos if p[4]})
-    except Exception as e:
-        current_app.logger.exception("Erro ao listar produtos")
-        flash(f"Erro ao listar produtos: {e}", "danger")
-        produtos = []
-        categorias_unicas = []
-    finally:
-        if conn: # Fecha a conexão se ela foi aberta
-            conn.close()
-    return render_template('ver_produtos.html', produtos=produtos, categorias=categorias_unicas)
+            # Obter categorias existentes para o campo de seleção (para edição inline)
+            cur.execute("SELECT DISTINCT categoria FROM produtos WHERE categoria IS NOT NULL AND categoria != '' ORDER BY categoria")
+            categorias_unicas = [row[0] for row in cur.fetchall()]
 
-# Edição inline dos produtos (Nome da rota e função ajustados para 'editar_produto_inline')
-@ver_produtos_bp.route('/editar_produto_inline', methods=['POST']) # Rota ajustada
-def editar_produto_inline(): # Função ajustada
-    data = request.get_json()
+            query = "SELECT id, nome, preco, descricao, categoria, imagem, ativo FROM produtos WHERE 1=1"
+            params = []
+
+            if nome_filtro:
+                query += " AND nome ILIKE %s" # ILIKE para case-insensitive no PostgreSQL
+                params.append(f"%{nome_filtro}%") # Passa o parâmetro para o filtro
+
+            query += " ORDER BY nome ASC" # ORDENAÇÃO ALFABÉTICA SEMPRE
+
+            cur.execute(query, params)
+            produtos = cur.fetchall()
+
+    except Exception as e:
+        # Aqui você pode querer logar o erro com current_app.logger.exception
+        print(f"Erro ao carregar produtos: {e}")
+        # flash('Erro ao carregar produtos.', 'danger') # Se quiser usar flash messages
+    finally:
+        if conn:
+            conn.close()
+
+    return render_template('ver_produtos.html', produtos=produtos, categorias=categorias_unicas, nome_filtro=nome_filtro)
+
+
+# Rota para exclusão de produto - NOVO
+@ver_produtos_bp.route('/excluir/<int:produto_id>', methods=['POST'])
+def excluir_produto(produto_id):
     conn = None
     try:
         conn = get_db_connection()
         with conn.cursor() as cur:
-            query = """
-                UPDATE produtos
-                SET nome=%s, preco=%s, descricao=%s, categoria=%s, ativo=%s
-                WHERE id=%s
-            """
+            cur.execute("DELETE FROM produtos WHERE id = %s", (produto_id,))
+            conn.commit()
+            return jsonify({'success': True, 'message': 'Produto excluído com sucesso!'})
+    except Exception as e:
+        # Aqui você pode querer logar o erro com current_app.logger.exception
+        print(f"Erro ao excluir produto: {e}")
+        return jsonify({'success': False, 'message': f'Erro ao excluir produto: {e}'})
+    finally:
+        if conn:
+            conn.close()
+
+# Rota para edição inline (já existente, certifique-se que ela exista e esteja funcional)
+@ver_produtos_bp.route('/editar_inline', methods=['POST'])
+def editar_produto_inline():
+    conn = None
+    try:
+        data = request.get_json()
+        produto_id = data['id']
+        nome = data['nome']
+        preco = data['preco']
+        descricao = data['descricao']
+        categoria = data['categoria']
+        ativo = data['ativo']
+
+        conn = get_db_connection()
+        with conn.cursor() as cur:
             cur.execute(
-                query,
-                (
-                    data['nome'],
-                    float(data['preco']),
-                    data['descricao'],
-                    data['categoria'],
-                    data['ativo'],
-                    data['id']
-                )
+                "UPDATE produtos SET nome = %s, preco = %s, descricao = %s, categoria = %s, ativo = %s WHERE id = %s",
+                (nome, preco, descricao, categoria, ativo, produto_id)
             )
             conn.commit()
-        return jsonify({'success': True, 'message': 'Produto atualizado com sucesso!'})
+            return jsonify({'success': True, 'message': 'Produto atualizado com sucesso!'})
     except Exception as e:
-        current_app.logger.exception("Erro ao atualizar produto inline") # Log mais específico
-        return jsonify({'success': False, 'message': f"Erro ao atualizar produto: {e}"}) # Mensagem de erro mais útil
+        print(f"Erro ao editar produto inline: {e}")
+        return jsonify({'success': False, 'message': f'Erro ao atualizar produto: {e}'})
     finally:
         if conn:
             conn.close()
 
-# Upload de imagem do produto
-@ver_produtos_bp.route('/upload_imagem/<int:produto_id>', methods=['POST'])
-def upload_imagem(produto_id):
-    if 'imagem' not in request.files:
-        return jsonify({'success': False, 'message': 'Nenhum arquivo selecionado.'})
-    file = request.files['imagem']
-    if file.filename == '':
-        return jsonify({'success': False, 'message': 'Nenhum arquivo selecionado.'})
-
-    conn = None
-    try:
-        conn = get_db_connection()
-        with conn.cursor() as cur:
-            cur.execute("UPDATE produtos SET imagem = %s WHERE id = %s", (psycopg2.Binary(file.read()), produto_id))
-            conn.commit()
-        return jsonify({'success': True, 'message': 'Imagem enviada com sucesso!'})
-    except Exception as e:
-        current_app.logger.exception("Erro ao fazer upload da imagem")
-        return jsonify({'success': False, 'message': f"Erro ao fazer upload da imagem: {e}"})
-    finally:
-        if conn:
-            conn.close()
-
-# Visualização da imagem do produto
+# Rota para imagem do produto (já existente)
 @ver_produtos_bp.route('/imagem/<int:produto_id>')
 def imagem_produto(produto_id):
     conn = None
@@ -98,13 +94,15 @@ def imagem_produto(produto_id):
         conn = get_db_connection()
         with conn.cursor() as cur:
             cur.execute("SELECT imagem FROM produtos WHERE id = %s", (produto_id,))
-            imagem = cur.fetchone()
-            if imagem and imagem[0]:
-                return Response(imagem[0], mimetype='image/jpeg')
-            return "Imagem não encontrada", 404
+            result = cur.fetchone()
+            if result and result[0]:
+                # Certifique-se de que 'result[0]' é um objeto bytes da imagem
+                return Response(result[0], mimetype='image/jpeg') # Ajuste o mimetype conforme o tipo da sua imagem
+            else:
+                return "Imagem não encontrada", 404
     except Exception as e:
-        current_app.logger.exception("Erro ao recuperar imagem do produto")
-        return f"Erro: {e}", 500
+        print(f"Erro ao buscar imagem: {e}")
+        return "Erro ao buscar imagem", 500
     finally:
         if conn:
             conn.close()
