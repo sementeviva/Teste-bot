@@ -8,39 +8,31 @@ from datetime import datetime
 # Importa o utilitário Twilio centralizado
 from utils.twilio_utils import send_whatsapp_message
 from utils.fluxo_vendas import listar_categorias, listar_produtos_categoria, adicionar_ao_carrinho, ver_carrinho
-# IMPORTANTE: A função get_db_connection DEVE SER IMPORTADA de um módulo centralizado
-# Exemplo: from utils.db_utils import get_db_connection
-# Para fins desta correção, assumimos que ela está em utils/db_utils.py
-from utils.db_utils import get_db_connection # <--- MELHORIA 2 APLICADA AQUI
+# IMPORTANTE: A função get_db_connection E salvar_conversa DEVEM SER IMPORTADAS de um módulo centralizado
+from utils.db_utils import get_db_connection, salvar_conversa # <--- CORREÇÃO 3: IMPORTA SALVAR_CONVERSA TAMBÉM
 
 # Blueprints
 from routes.upload_csv import upload_csv_bp
 from routes.edit_produtos import edit_produtos_bp
 from routes.ver_produtos import ver_produtos_bp
+from routes.ver_conversas import ver_conversas_bp # <--- CORREÇÃO 2: IMPORTA O BLUEPRINT DE CONVERSAS
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "chave_secreta_upload")
 
-# Registre os blueprints
+# Registre os blueprints (TODOS eles)
 app.register_blueprint(upload_csv_bp, url_prefix="/upload")
 app.register_blueprint(edit_produtos_bp, url_prefix="/edit_produtos")
 app.register_blueprint(ver_produtos_bp, url_prefix="/ver_produtos")
+app.register_blueprint(ver_conversas_bp, url_prefix="/ver_conversas") # <--- CORREÇÃO 2: REGISTRA O BLUEPRINT DE CONVERSAS
 
 # Variáveis de ambiente
 openai_api_key = os.environ.get("OPENAI_API_KEY")
 RENDER_BASE_URL = "https://teste-bot-9ppl.onrender.com"  # Seu domínio público do Render
 client_openai = OpenAI(api_key=openai_api_key)
 
-# A função get_db_connection foi movida para utils/db_utils.py (Melhoria 2)
-# Código anterior:
-# def get_db_connection():
-#     return psycopg2.connect(
-#         host=os.environ.get('DB_HOST'),
-#         database=os.environ.get('DB_NAME'),
-#         user=os.environ.get('DB_USER'),
-#         password=os.environ.get('DB_PASSWORD'),
-#         port=os.environ.get('DB_PORT', 5432)
-#     )
+# As funções get_db_connection e salvar_conversa foram movidas para utils/db_utils.py (Melhoria 2 e 4)
+# Código anterior de get_db_connection e salvar_conversa removido daqui.
 
 def carregar_produtos_db():
     try:
@@ -56,7 +48,7 @@ def carregar_produtos_db():
         return pd.DataFrame(columns=["nome", "descricao", "preco", "categoria"])
 
 # Funções renomeadas para refletir o uso do banco de dados (Melhoria 3)
-def buscar_produto_no_db(mensagem): # <--- NOME RENOMEADO
+def buscar_produto_no_db(mensagem):
     df = carregar_produtos_db()
     mensagem_lower = mensagem.lower()
     resultados = df[df["nome"].str.contains(mensagem_lower)]
@@ -68,7 +60,7 @@ def buscar_produto_no_db(mensagem): # <--- NOME RENOMEADO
         return "\n\n".join(respostas)
     return None
 
-def gerar_contexto_do_db(): # <--- NOME RENOMEADO
+def gerar_contexto_do_db():
     df = carregar_produtos_db()
     contextos = []
     for _, row in df.iterrows():
@@ -101,7 +93,7 @@ def buscar_produto_detalhado(mensagem):
         return None # Importante retornar None em caso de erro
 
 def get_gpt_response(mensagem):
-    contexto_produtos = gerar_contexto_do_db() # <--- CHAMADA ATUALIZADA
+    contexto_produtos = gerar_contexto_do_db()
     prompt = f"""
 Você é um assistente virtual de vendas da loja Semente Viva, especializada em produtos naturais.
 Seu objetivo é oferecer um atendimento humanizado, simpático e eficiente, guiando o cliente durante toda a jornada de compra.
@@ -143,34 +135,10 @@ Mensagem do cliente: {mensagem}
     )
     return response.choices[0].message.content.strip()
 
-# Nova função auxiliar para salvar conversas (Melhoria 4)
-def salvar_conversa(contato, mensagem_usuario, resposta_bot):
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO conversas (contato, mensagem_usuario, resposta_bot, data_hora) VALUES (%s, %s, %s, %s)",
-            (contato, mensagem_usuario, resposta_bot, datetime.now())
-        )
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        print(f"Erro ao salvar conversa: {e}")
-
 # =========================
 # ROTAS PARA IMAGEM PRODUTO - REMOVIDAS DE APP.PY (Melhoria 1)
 # ELAS ESTÃO AGORA APENAS NO BLUEPRINT ver_produtos_bp
 # =========================
-
-# Código ANTERIOR:
-# @app.route('/upload_imagem/<int:produto_id>', methods=['POST'])
-# def upload_imagem(produto_id):
-#     # ... (lógica da rota)
-
-# @app.route('/ver_produtos/imagem/<int:produto_id>')
-# def ver_imagem(produto_id):
-#     # ... (lógica da rota)
-
 
 # =========================
 # Webhook WhatsApp
@@ -192,7 +160,7 @@ def whatsapp_webhook():
             to_number=sender_number,
             body=resposta_final
         )
-        salvar_conversa(sender_number, user_message, resposta_final) # <--- LOG ADICIONADO
+        salvar_conversa(sender_number, user_message, resposta_final)
         return "OK", 200
 
     elif user_message_lower in ["carrinho", "ver carrinho"]:
@@ -201,7 +169,7 @@ def whatsapp_webhook():
             to_number=sender_number,
             body=resposta_final
         )
-        salvar_conversa(sender_number, user_message, resposta_final) # <--- LOG ADICIONADO
+        salvar_conversa(sender_number, user_message, resposta_final)
         return "OK", 200
 
     elif user_message.isdigit():
@@ -210,7 +178,7 @@ def whatsapp_webhook():
             to_number=sender_number,
             body=resposta_final
         )
-        salvar_conversa(sender_number, user_message, resposta_final) # <--- LOG ADICIONADO
+        salvar_conversa(sender_number, user_message, resposta_final)
         return "OK", 200
 
     elif user_message_lower in ["chá", "chás", "suplementos", "óleos", "veganos"]:
@@ -219,7 +187,7 @@ def whatsapp_webhook():
             to_number=sender_number,
             body=resposta_final
         )
-        salvar_conversa(sender_number, user_message, resposta_final) # <--- LOG ADICIONADO
+        salvar_conversa(sender_number, user_message, resposta_final)
         return "OK", 200
 
     # NOVO: resposta para consultas por produto com envio de imagem
@@ -244,11 +212,11 @@ def whatsapp_webhook():
                 to_number=sender_number,
                 body=resposta_final
             )
-        salvar_conversa(sender_number, user_message, resposta_final) # <--- CHAMADA DA FUNÇÃO AUXILIAR
+        salvar_conversa(sender_number, user_message, resposta_final)
         return "OK", 200
 
     # Caso não encontre produto, segue fluxo padrão com busca por nome ou IA
-    resposta_db = buscar_produto_no_db(user_message) # <--- CHAMADA ATUALIZADA
+    resposta_db = buscar_produto_no_db(user_message)
     if resposta_db:
         send_whatsapp_message(
             to_number=sender_number,
@@ -262,28 +230,14 @@ def whatsapp_webhook():
             body=resposta_final
         )
 
-    salvar_conversa(sender_number, user_message, resposta_final) # <--- CHAMADA DA FUNÇÃO AUXILIAR
+    salvar_conversa(sender_number, user_message, resposta_final)
     return "OK", 200
 
-@app.route("/conversas", methods=["GET", "POST"])
-def ver_conversas():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    contato = request.form.get("contato", "")
-    data = request.form.get("data", "")
-    query = "SELECT * FROM conversas WHERE 1=1"
-    params = []
-    if contato:
-        query += " AND contato LIKE %s"
-        params.append(f"%{contato}%")
-    if data:
-        query += " AND DATE(data_hora) = %s"
-        params.append(data)
-    query += " ORDER BY data_hora DESC"
-    cursor.execute(query, params)
-    conversas = cursor.fetchall()
-    conn.close()
-    return render_template("conversas.html", conversas=conversas, contato=contato, data=data)
+# <--- CORREÇÃO 1: ROTA /conversas REMOVIDA DE APP.PY
+# Ela agora é gerenciada EXCLUSIVAMENTE pelo Blueprint ver_conversas_bp em routes/ver_conversas.py
+# @app.route("/conversas", methods=["GET", "POST"])
+# def ver_conversas():
+#     # ... (código removido) ...
 
 @app.route("/")
 def home():
