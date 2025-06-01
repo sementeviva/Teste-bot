@@ -7,7 +7,7 @@
     <title>Gerenciar Vendas</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script> <!-- Usaremos Axios para as chamadas AJAX -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <style>
         body {
             padding-top: 20px;
@@ -35,7 +35,7 @@
                     <tr>
                         <th>ID da Venda</th>
                         <th>Data/Hora</th>
-                        <th>ID do Cliente</th>
+                        <th>Nome do Cliente</th> <!-- ALTERADO: de ID do Cliente para Nome do Cliente -->
                         <th>Produtos Vendidos</th>
                         <th>Valor Total</th>
                         <th>Status</th>
@@ -54,11 +54,11 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         function atualizarVendas() {
-            axios.get('/gerenciar_vendas/api/vendas') // Caminho da API no seu Blueprint
+            axios.get('/gerenciar_vendas/api/vendas')
                 .then(response => {
                     const vendas = response.data;
                     const tbody = document.getElementById('vendas-tbody');
-                    tbody.innerHTML = ''; // Limpa a tabela antes de adicionar novas linhas
+                    tbody.innerHTML = '';
 
                     if (vendas.length === 0) {
                         tbody.innerHTML = '<tr><td colspan="6" class="text-center">Nenhuma venda encontrada.</td></tr>';
@@ -70,7 +70,7 @@
                             <tr>
                                 <td>${venda.id}</td>
                                 <td>${venda.data_hora}</td>
-                                <td>${venda.cliente_id}</td>
+                                <td>${venda.nome_cliente}</td> <!-- ALTERADO: de venda.cliente_id para venda.nome_cliente -->
                                 <td>${venda.produtos_vendidos}</td>
                                 <td>R$ ${parseFloat(venda.valor_total).toFixed(2).replace('.', ',')}</td>
                                 <td>${venda.status}</td>
@@ -86,10 +86,7 @@
                 });
         }
 
-        // Chama a função para carregar vendas quando a página é carregada
         document.addEventListener('DOMContentLoaded', atualizarVendas);
-
-        // Atualiza as vendas a cada 5 segundos (5000 milissegundos)
         setInterval(atualizarVendas, 5000);
     </script>
 </body>
