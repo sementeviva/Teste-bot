@@ -1,4 +1,7 @@
-from flask import Blueprint, render_template, request, jsonify # Adicionado 'request' e 'jsonify'
+from flask import Blueprint, render_template, request, jsonify, Response # Adicionado 'Response' aqui
+# IMPORTANTE: Se você pretende usar current_app.logger.exception em produção, descomente a linha abaixo
+# from flask import current_app # Descomentar se precisar de current_app
+
 from utils.db_utils import get_db_connection
 
 ver_produtos_bp = Blueprint('ver_produtos_bp', __name__, template_folder='../templates')
@@ -40,7 +43,7 @@ def ver_produtos():
     return render_template('ver_produtos.html', produtos=produtos, categorias=categorias_unicas, nome_filtro=nome_filtro)
 
 
-# Rota para exclusão de produto - NOVO
+# Rota para exclusão de produto
 @ver_produtos_bp.route('/excluir/<int:produto_id>', methods=['POST'])
 def excluir_produto(produto_id):
     conn = None
@@ -58,7 +61,7 @@ def excluir_produto(produto_id):
         if conn:
             conn.close()
 
-# Rota para edição inline (já existente, certifique-se que ela exista e esteja funcional)
+# Rota para edição inline
 @ver_produtos_bp.route('/editar_inline', methods=['POST'])
 def editar_produto_inline():
     conn = None
@@ -86,7 +89,7 @@ def editar_produto_inline():
         if conn:
             conn.close()
 
-# Rota para imagem do produto (já existente)
+# Rota para imagem do produto
 @ver_produtos_bp.route('/imagem/<int:produto_id>')
 def imagem_produto(produto_id):
     conn = None
@@ -97,9 +100,10 @@ def imagem_produto(produto_id):
             result = cur.fetchone()
             if result and result[0]:
                 # Certifique-se de que 'result[0]' é um objeto bytes da imagem
-                return Response(result[0], mimetype='image/jpeg') # Ajuste o mimetype conforme o tipo da sua imagem
+                # E o mimetype (image/jpeg) corresponde ao tipo real da imagem armazenada
+                return Response(result[0], mimetype='image/jpeg') # AJUSTE O MIMETYPE SE NECESSÁRIO
             else:
-                return "Imagem não encontrada", 404
+                return "Imagem não encontrada ou produto sem imagem", 404
     except Exception as e:
         print(f"Erro ao buscar imagem: {e}")
         return "Erro ao buscar imagem", 500
