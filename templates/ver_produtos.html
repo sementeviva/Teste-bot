@@ -149,7 +149,7 @@
         });
     }
 
-    // AJAX para upload de imagem
+    // AJAX para upload de imagem - SOLUÇÃO FINAL PARA O PROBLEMA DE ID
     function enviarImagem(event, id) {
         event.preventDefault();
         const form = event.target;
@@ -160,13 +160,16 @@
         }
         const formData = new FormData();
         formData.append('imagem', fileInput.files[0]);
-        
-        // AQUI ESTÁ A CORREÇÃO: Gerando a URL com um placeholder e substituindo no JavaScript
-        // O Jinja2 irá gerar a string '/ver_produtos/upload_imagem/_id_placeholder_'
-        // e o JavaScript irá substituir '_id_placeholder_' pelo valor real de 'id'
-        const uploadUrl = '{{ url_for("ver_produtos_bp.upload_imagem", produto_id="_id_placeholder_") }}'.replace('_id_placeholder_', id);
 
-        fetch(uploadUrl, { // Usa a URL construída dinamicamente
+        // GERA A URL BASE SEM O ID NO FINAL, POIS O CONVERSOR É INT
+        // Exemplo de saída: /ver_produtos/upload_imagem/
+        const baseUrl = '{{ url_for("ver_produtos_bp.upload_imagem", produto_id="") }}';
+        
+        // CONCATENA O ID NO JAVASCRIPT, APÓS A GERAÇÃO DA URL PELO FLASK
+        // Exemplo de saída: /ver_produtos/upload_imagem/123
+        const uploadUrl = baseUrl + id;
+
+        fetch(uploadUrl, {
             method: 'POST',
             body: formData
         })
