@@ -149,7 +149,7 @@
         });
     }
 
-    // AJAX para upload de imagem - SOLUÇÃO DEFINITIVA
+    // AJAX para upload de imagem - SOLUÇÃO FINAL (Construção direta da URL em JS)
     function enviarImagem(event, id) {
         event.preventDefault();
         const form = event.target;
@@ -161,13 +161,10 @@
         const formData = new FormData();
         formData.append('imagem', fileInput.files[0]);
 
-        // GERA A URL BASE SEM O PRODUTO_ID, POIS A ROTA EXIGE UM INT.
-        // A url_for APENAS GERA A PARTE FIXA: /ver_produtos/upload_imagem
-        const baseUrl = '{{ url_for("ver_produtos_bp.upload_imagem") }}';
-        
-        // CONSTRÓI A URL COMPLETA NO JAVASCRIPT, CONCATENANDO O ID REAL.
-        // Isso resulta em algo como: /ver_produtos/upload_imagem/123
-        const uploadUrl = baseUrl + '/' + id;
+        // CONSTRÓI A URL INTEIRAMENTE NO JAVASCRIPT
+        // Isso evita os problemas de validação de 'url_for' com parâmetros obrigatórios de tipo 'int'
+        // A URL será /ver_produtos/upload_imagem/ID_DO_PRODUTO
+        const uploadUrl = `/ver_produtos/upload_imagem/${id}`;
 
         fetch(uploadUrl, {
             method: 'POST',
