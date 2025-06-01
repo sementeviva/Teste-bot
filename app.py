@@ -1,3 +1,80 @@
+# In whatsapp_webhook, inside the if produto_detalhado["tem_imagem"]: block
+
+            if produto_detalhado["tem_imagem"]:
+                img_url = f"{RENDER_BASE_URL}/ver_produtos/imagem/{produto_detalhado['id']}"
+                
+                # LÓGICA DE ENVIO DE IMAGEM COMENTADA (ative quando sua conta estiver verificada)
+                # send_whatsapp_message(
+                #     to_number=sender_number,
+                #     body=resposta_final, # Keep body part for textual description
+                #     media_url=img_url
+                # )
+                # salvar_conversa(sender_number, user_message, resposta_final)
+                # return "OK", 200 # Termina a execução se enviou imagem
+
+
+            # Existing guidance for when image is not sent:
+            resposta_final += "\n\nPara ver mais detalhes e fotos, por favor, visite nosso catálogo no site (link do site) ou digite 'produtos' para ver outras opções aqui.\n" \
+                              f"Se quiser adicionar '{produto_detalhado['nome'].capitalize()}' ao carrinho, use o comando: `add {produto_detalhado['id']} <quantidade>`."
+
+            # Ensure that the message (text) is sent even if image is commented out.
+            # This is crucial. The previous code structure had a 'return "OK", 200'
+            # inside the `if produto_detalhado["tem_imagem"]` block.
+            # If `send_whatsapp_message` is commented out, this `return` will prevent
+            # `resposta_final` from being sent later.
+
+            # I need to ensure that the `resposta_final` that *includes* the description
+            # and the guidance is sent.
+
+            # The original structure:
+            # if produto_detalhado["tem_imagem"]:
+            #     send_whatsapp_message(media_url)
+            #     salvar_conversa
+            #     return "OK", 200
+            # else: # no image
+            #     # response gets sent at the end of webhook
+            #
+            # My modified (last) structure:
+            # if produto_detalhado["tem_imagem"]:
+            #     # Image sending logic removed (by user request)
+            #     # send_whatsapp_message(media_url) was here
+            #     # salvar_conversa was here
+            #     # return "OK", 200 was here (this is problematic if commented out)
+            #
+            # The guidance "Para ver mais detalhes..." was appended to `resposta_final`
+            # after this if/else, regardless of `tem_imagem`.
+
+            # If I just comment out `send_whatsapp_message` and `return`,
+            # then the text `resposta_final` will be sent at the very end of the
+            # webhook, which is fine.
+
+            # Let's adjust the `if produto_detalhado["tem_imagem"]:` block to simply
+            # NOT send the `media_url` part, but still *construct* the `img_url`
+            # so the code is ready, and ensure the *text* of `resposta_final` is always sent.
+
+            # The current logic for product_detalhado already sets `resposta_final`.
+            # The issue is the `return "OK", 200` after `send_whatsapp_message(media_url)`.
+            # If that `send_whatsapp_message` is commented out, the `return` should also be
+            # commented out, so the flow continues to send the `resposta_final` text later.
+
+            # Let's make it clean:
+            # - Construct img_url (keep for future)
+            # - Conditional send_whatsapp_message for media_url (comment out)
+            # - Ensure the *text* part of response is built and sent (always)
+
+# In get_gpt_response prompt, adjust the image instructions:
+# "Fotos dos Produtos: - Como não podemos enviar fotos diretamente no momento, descreva os produtos de forma ainda mais detalhada e peça para o cliente visitar o site ou catálogo para ver as imagens."
+
+# Change to:
+# "Fotos dos Produtos: - Descreva os produtos em detalhes. Atualmente, não estamos enviando imagens via WhatsApp, mas essa funcionalidade pode ser ativada no futuro. Para ver as imagens, o cliente pode visitar nosso site ou catálogo."
+
+This covers all points.Entendi! Você quer manter a lógica de envio de imagens no seu código para quando sua conta Twilio estiver verificada. Ao mesmo tempo, deseja aprimorar o chatbot com mensagens mais dinâmicas e um guia claro das funcionalidades para o cliente.
+
+Vou aplicar as atualizações para um chat mais dinâmico e informativo, **mantendo o código para envio de imagens (mas comentado)**, para que você possa ativá-lo facilmente quando sua conta estiver verificada.
+
+### **`app.py` Atualizado (com envio de imagens comentado):**
+
+```python
 import os
 import pandas as pd
 import psycopg2
@@ -34,7 +111,7 @@ openai_api_key = os.environ.get("OPENAI_API_KEY")
 RENDER_BASE_URL = "https://teste-bot-9ppl.onrender.com"  # Seu domínio público do Render
 client_openai = OpenAI(api_key=openai_api_key)
 
-# Funções de DB e OpenAI (permanecem inalterados)
+# Funções de DB e OpenAI (permanecem inalterados, exceto pequena alteração no prompt do GPT)
 def carregar_produtos_db():
     try:
         conn = get_db_connection()
@@ -48,14 +125,18 @@ def carregar_produtos_db():
         print(f"Erro ao carregar produtos do banco: {e}")
         return pd.DataFrame(columns=["nome", "descricao", "preco", "categoria"])
 
+# ALTERADO: Adicionado filtro de tamanho para evitar buscas por palavras muito curtas
 def buscar_produto_no_db(mensagem):
+    if len(mensagem.strip()) < 3: # Não busca por palavras muito curtas
+        return None
     df = carregar_produtos_db()
     mensagem_lower = mensagem.lower()
-    resultados = df[df["nome"].str.contains(mensagem_lower)]
+    # Usando regex para buscar a palavra completa no nome do produto
+    resultados = df[df["nome"].str.contains(r'\b' + mensagem_lower + r'\b', regex=True)] # Busca por palavra completa
     if not resultados.empty:
         respostas = []
         for _, row in resultados.iterrows():
-            resposta = f"{row['nome'].capitalize()} - R$ {row['preco']}\n{row['descricao']}"
+            resposta = f"{row['nome'].capitalize()} - R$ {row['preco']:.2f}\n{row['descricao']}"
             respostas.append(resposta)
         return "\n\n".join(respostas)
     return None
@@ -64,14 +145,19 @@ def gerar_contexto_do_db():
     df = carregar_produtos_db()
     contextos = []
     for _, row in df.iterrows():
-        contexto = f"{row['nome'].capitalize()} - R$ {row['preco']} - {row['descricao']}"
+        contexto = f"{row['nome'].capitalize()} - R$ {row['preco']:.2f} - {row['descricao']}"
         contextos.append(contexto)
     return "\n".join(contextos)
 
+# ALTERADO: Adicionado filtro de tamanho para evitar buscas por palavras muito curtas
 def buscar_produto_detalhado(mensagem):
+    if len(mensagem.strip()) < 3: # Não busca por palavras muito curtas
+        return None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
+        # Busca por nome do produto que contenha a mensagem do usuário (case insensitive)
+        # Pode ser necessário ajustar a busca aqui para ser mais precisa ou usar um parser
         cur.execute(
             "SELECT id, nome, preco, descricao, categoria, imagem FROM produtos WHERE LOWER(nome) LIKE %s LIMIT 1",
             (f"%{mensagem.lower()}%",)
@@ -108,9 +194,7 @@ Carrinho de Compras:
 - Permita que ele consulte o carrinho a qualquer momento ("Deseja ver o que já escolheu?").
 - Mostre um resumo do carrinho antes do fechamento do pedido (produtos, quantidades, valores).
 Fotos dos Produtos:
-- Sempre que apresentar ou recomendar um produto, envie também a foto correspondente, se disponível, para ajudar o cliente na escolha.
-- Só envie a imagem do produto correspondente ao que está sendo perguntado ou sugerido.
-- Utilize a informação abaixo para localizar ou identificar a foto de cada produto e descreva a imagem de forma complementar para ajudar clientes com possíveis limitações visuais.
+- Descreva os produtos em detalhes. Atualmente, não estamos enviando imagens via WhatsApp, mas essa funcionalidade pode ser ativada no futuro. Para ver as imagens, o cliente pode visitar nosso site ou catálogo.
 Diretrizes do atendimento aprimoradas:
 1. Sempre utilize linguagem personalizada, cordial e animada.
 2. Proponha próximos passos claros conforme o estágio de compra do cliente.
@@ -120,7 +204,15 @@ Diretrizes do atendimento aprimoradas:
 6. Nunca solicite dados sensíveis.
 7. Encaminhe para atendimento humano caso necessário.
 8. Finalize cada atendimento agradecendo e se colocando à disposição para dúvidas ou acompanhamentos futuros.
-Catálogo de produtos (com fotos):
+
+**Instruções Cruciais para o Chabot:**
+- Sempre que responder a uma pergunta ou sugestão, **guie o cliente explicitamente** sobre o que ele pode fazer em seguida. Ex: "Para ver todos os nossos produtos, digite 'produtos'.", "Para adicionar algo ao carrinho, use 'add <ID> <quantidade>'.", "Para ver seu carrinho, digite 'carrinho'."
+- Se o cliente perguntar sobre um produto específico, forneça a descrição e o preço, e **sugira que ele digite 'add <ID do produto> <quantidade>'** para adicionar ao carrinho ou 'produtos' para ver o catálogo.
+- Se o cliente expressar interesse em comprar algo, **lembre-o de usar o comando 'add' com ID e quantidade.**
+- Sempre ofereça ajuda com "Posso ajudar em algo mais?" ou "Como posso prosseguir com sua jornada de compra?"
+
+
+Catálogo de produtos (com fotos - para sua referência, mas descreva):
 {contexto_produtos}
 Mensagem do cliente: {mensagem}
 """
@@ -150,68 +242,101 @@ def whatsapp_webhook():
 
     resposta_final = "" # Inicializa a resposta final
 
-    # --- Lógica do Carrinho ---
-    if user_message_lower in ["menu", "ver produtos", "produtos"]:
-        resposta_final = listar_categorias()
+    # 1. Prioridade: Saudações e Menu Principal
+    if user_message_lower in ["oi", "olá", "ola", "oi tudo bem", "menu", "começar", "iniciar"]: # Mais saudações
+        resposta_final = "Olá! Seja muito bem-vindo(a) à Semente Viva! 🌱 Sou seu assistente virtual para ajudar você a encontrar os melhores produtos naturais. " \
+                         "Estou aqui para tornar sua jornada de compra fácil e agradável.\n\n" \
+                         "Para começarmos, veja as opções disponíveis:\n" \
+                         "👉 Digite `produtos` para ver nosso catálogo completo.\n" \
+                         "👉 Digite `carrinho` para conferir os itens que você já escolheu.\n" \
+                         "👉 Digite `finalizar` para concluir seu pedido.\n" \
+                         "Você também pode perguntar sobre produtos específicos! Por exemplo: 'Quero saber sobre Whey Protein'."
     
-    # NOVO: Comando para adicionar produtos ao carrinho
+    # 2. Prioridade: Comandos do Carrinho
     elif user_message_lower.startswith('add '):
         parts = user_message_lower.split()
         if len(parts) == 3:
             try:
                 prod_id = int(parts[1])
                 quantidade = int(parts[2])
-                resposta_final = adicionar_ao_carrinho(sender_number, prod_id, quantidade)
+                resposta_retorno_fluxo = adicionar_ao_carrinho(sender_number, prod_id, quantidade)
+                # Adiciona orientação extra após adicionar ao carrinho
+                resposta_final = f"{resposta_retorno_fluxo}\n\n" \
+                                 "Perfeito! O que você gostaria de fazer agora?\n" \
+                                 "👉 Digite `produtos` para continuar comprando.\n" \
+                                 "👉 Digite `carrinho` para ver o que você já tem.\n" \
+                                 "👉 Digite `finalizar` para ir para o fechamento do pedido."
             except ValueError:
-                resposta_final = "Formato inválido para adicionar. Use 'add <ID do produto> <quantidade>'. Ex: 'add 1 2'"
+                resposta_final = "Ops! Formato inválido para adicionar ao carrinho. Por favor, use: `add <ID do produto> <quantidade>`. Ex: `add 1 2`."
         else:
-            resposta_final = "Formato inválido para adicionar. Use 'add <ID do produto> <quantidade>'. Ex: 'add 1 2'"
+            resposta_final = "Ops! Formato inválido para adicionar ao carrinho. Por favor, use: `add <ID do produto> <quantidade>`. Ex: `add 1 2`."
     
-    elif user_message_lower in ["carrinho", "ver carrinho"]:
-        resposta_final = ver_carrinho(sender_number)
+    elif user_message_lower in ["carrinho", "ver carrinho", "meu carrinho"]: # Mais sinônimos para carrinho
+        resposta_retorno_fluxo = ver_carrinho(sender_number)
+        resposta_final = f"{resposta_retorno_fluxo}\n\n" \
+                         "Pronto para dar o próximo passo?\n" \
+                         "👉 Digite `finalizar` para confirmar e fechar seu pedido.\n" \
+                         "👉 Digite `produtos` para adicionar mais itens."
     
-    # NOVO: Comando para finalizar a compra
     elif user_message_lower == 'finalizar':
-        resposta_final = finalizar_compra(sender_number)
+        resposta_retorno_fluxo = finalizar_compra(sender_number)
+        resposta_final = f"{resposta_retorno_fluxo}\n\n" \
+                         "Agradecemos a sua compra! Se precisar de algo mais ou tiver dúvidas futuras, é só chamar. Digite `menu` a qualquer momento."
     
-    # --- Lógica de Categorias (se não for comando de carrinho) ---
-    # Verifica se a mensagem é um nome de categoria existente
-    elif user_message_lower in ["chá", "chás", "suplementos", "óleos", "veganos"]: # Ajuste conforme suas categorias
-        resposta_final = listar_produtos_categoria(user_message_lower)
+    # 3. Prioridade: Listagem de Produtos e Categorias
+    elif user_message_lower in ["produtos", "ver produtos", "catalogo", "cardapio"]: # Mais sinônimos para produtos
+        resposta_retorno_fluxo = listar_categorias() # Ou listar todos os produtos se não tiver categorias
+        resposta_final = f"{resposta_retorno_fluxo}\n\n" \
+                         "Se quiser ver todos os produtos de uma categoria, é só digitar o nome dela (ex: `chá`).\n" \
+                         "Para adicionar, digite `add <ID do produto> <quantidade>`. Qual categoria você gostaria de explorar?"
+    
+    # Verifica se a mensagem é um nome de categoria existente (ajuste conforme suas categorias)
+    elif user_message_lower in ["chá", "chás", "suplementos", "óleos", "veganos", "goiabada"]: # Exemplo de categoria
+        resposta_retorno_fluxo = listar_produtos_categoria(user_message_lower)
+        resposta_final = f"{resposta_retorno_fluxo}\n\n" \
+                         "Gostou de algum produto? Digite `add <ID do produto> <quantidade>` para adicioná-lo ao seu carrinho!\n" \
+                         "Ou digite `produtos` para ver outras categorias."
 
-    # --- Lógica de Busca de Produto Detalhado (via ID ou Nome) ---
-    # Se nenhuma das lógicas acima foi ativada, tenta buscar produto detalhado
-    if not resposta_final: # Se resposta_final ainda está vazia, significa que não foi um comando de carrinho ou categoria
+    # 4. Prioridade: Busca por Produto Detalhado (COM ENVIO DE IMAGEM COMENTADO)
+    if not resposta_final: 
         produto_detalhado = buscar_produto_detalhado(user_message)
 
         if produto_detalhado:
             resposta_final = (
-                f"{produto_detalhado['nome'].capitalize()} - R$ {produto_detalhado['preco']:.2f}\n" # Formata preço
-                f"{produto_detalhado['descricao']}\n"
-                "Confira a imagem do produto abaixo." if produto_detalhado["tem_imagem"] else ""
+                f"Que ótimo! Encontrei o produto que você busca:\n"
+                f"*{produto_detalhado['nome'].capitalize()}* - R$ {produto_detalhado['preco']:.2f}\n" 
+                f"Detalhes: {produto_detalhado['descricao']}"
             )
+            
+            # LÓGICA DE ENVIO DE IMAGEM COMENTADA (ative quando sua conta estiver verificada)
             if produto_detalhado["tem_imagem"]:
                 img_url = f"{RENDER_BASE_URL}/ver_produtos/imagem/{produto_detalhado['id']}"
-                send_whatsapp_message(
-                    to_number=sender_number,
-                    body=resposta_final,
-                    media_url=img_url
-                )
-                salvar_conversa(sender_number, user_message, resposta_final) # Salva a conversa aqui
-                return "OK", 200 # Termina a execução se enviou imagem
-            # Se não tem imagem, a resposta será enviada no bloco final
-        
-        # --- Lógica de Busca por Nome ou GPT ---
-        # Se ainda não gerou uma resposta, tenta buscar por nome ou usa GPT
-        if not resposta_final: # Se resposta_final ainda está vazia
-            resposta_db = buscar_produto_no_db(user_message)
-            if resposta_db:
-                resposta_final = resposta_db
-            else:
-                resposta_final = get_gpt_response(user_message)
+                # send_whatsapp_message(to_number=sender_number, body=resposta_final, media_url=img_url)
+                # salvar_conversa(sender_number, user_message, resposta_final)
+                # return "OK", 200 # Este return deve ser comentado se o send_whatsapp_message acima for comentado
+            
+            # Adiciona a orientação. Se a imagem for ativada, esta orientação complementa.
+            resposta_final += "\n\nPara ver mais detalhes e fotos, por favor, visite nosso catálogo no site (link do site) ou digite 'produtos' para ver outras opções aqui.\n" \
+                              f"Se quiser adicionar '{produto_detalhado['nome'].capitalize()}' ao carrinho, use o comando: `add {produto_detalhado['id']} <quantidade>`."
+    
+    # 5. Prioridade: Busca Geral de Produtos no DB ou GPT
+    if not resposta_final: 
+        resposta_db = buscar_produto_no_db(user_message)
+        if resposta_db:
+            resposta_final = f"Encontrei algo parecido com sua busca:\n{resposta_db}\n\n" \
+                             "Posso te ajudar a adicionar algum item ao carrinho? Lembre-se de usar `add <ID> <quantidade>`."
+        else:
+            resposta_final = get_gpt_response(user_message)
+            # Após a resposta do GPT, adiciona um guia geral se ela não for muito específica
+            if not any(cmd in resposta_final.lower() for cmd in ['produtos', 'carrinho', 'finalizar', 'add ']):
+                 resposta_final += "\n\nPara explorar mais, você pode:\n" \
+                                   "👉 Digitar `produtos` para ver nosso catálogo.\n" \
+                                   "👉 Digitar `carrinho` para gerenciar seus itens.\n" \
+                                   "👉 Digitar `finalizar` para concluir seu pedido."
+
 
     # --- Envio da Mensagem Final ---
-    if resposta_final: # Garante que há uma resposta para enviar
+    if resposta_final: 
         send_whatsapp_message(
             to_number=sender_number,
             body=resposta_final
@@ -220,7 +345,7 @@ def whatsapp_webhook():
     else: # Fallback caso nenhuma lógica gere resposta
         send_whatsapp_message(
             to_number=sender_number,
-            body="Desculpe, não consegui processar sua solicitação. Por favor, tente novamente."
+            body="Desculpe, não consegui processar sua solicitação. Por favor, tente novamente digitando 'menu' para ver as opções."
         )
         salvar_conversa(sender_number, user_message, "Erro: Sem resposta gerada.")
     
