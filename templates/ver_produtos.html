@@ -51,15 +51,25 @@
             align-items: center;
             margin-bottom: 20px; /* Espaçamento abaixo do cabeçalho */
         }
+        /* NOVO CSS para o botão Voltar e o título */
+        .header-actions > div { /* Estilo para o novo div que agrupa o botão e o título */
+            display: flex;
+            align-items: center;
+            gap: 15px; /* Espaçamento entre o botão e o título */
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <!-- Parte superior da tela: Título e Botão "Inserir Novo Produto" -->
         <div class="header-actions">
-            <h2>Produtos</h2>
-            <!-- Botão para Inserir Novo Produto -->
-            <!-- Aponta para a rota 'editar_produto' no Blueprint 'edit_produtos_bp', passando 0 para indicar que é um novo item -->
+            <div> <!-- NOVO: div para agrupar o botão Voltar e o título "Produtos" -->
+                <a href="{{ url_for('home') }}" class="btn btn-secondary me-2"> <!-- Botão Voltar ao Painel -->
+                    <i class="fas fa-arrow-left"></i> Voltar ao Painel
+                </a>
+                <h2>Produtos</h2>
+            </div>
+            <!-- Botão para Inserir Novo Produto (já existente) -->
             <a href="{{ url_for('edit_produtos_bp.editar_produto', produto_id=0) }}" class="btn btn-success">
                 <i class="fas fa-plus-circle"></i> Inserir Novo Produto
             </a>
