@@ -15,17 +15,21 @@
 
         <div class="row justify-content-center">
             <div class="col-md-4">
-                <a href="{{ url_for('upload_csv.upload_csv') }}" class="btn btn-outline-success w-100 mb-3">
+                {# Anterior: {{ url_for('upload_csv.upload_csv') }} #}
+                <a href="{{ url_for('upload_csv_bp.upload_csv') }}" class="btn btn-outline-success w-100 mb-3">
                     <i class="bi bi-upload me-2"></i> Fazer upload de CSV
                 </a>
             </div>
             <div class="col-md-4">
-                <a href="{{ url_for('ver_produtos.ver_produtos') }}" class="btn btn-outline-success w-100 mb-3">
+                {# Anterior: {{ url_for('ver_produtos.ver_produtos') }} #}
+                <a href="{{ url_for('ver_produtos_bp.ver_produtos') }}" class="btn btn-outline-success w-100 mb-3">
                     <i class="bi bi-box-seam me-2"></i> Ver produtos cadastrados
                 </a>
             </div>
             <div class="col-md-4">
-                <a href="{{ url_for('ver_conversas') }}" class="btn btn-outline-success w-100 mb-3">
+                {# Anterior: {{ url_for('ver_conversas') }} #}
+                {# Assumindo que também há um Blueprint 'ver_conversas_bp' #}
+                <a href="{{ url_for('ver_conversas_bp.ver_conversas') }}" class="btn btn-outline-success w-100 mb-3">
                     <i class="bi bi-chat-dots me-2"></i> Visualizar histórico de conversas
                 </a>
             </div>
