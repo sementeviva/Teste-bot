@@ -8,6 +8,10 @@ from datetime import datetime
 # Importa o utilitário Twilio centralizado
 from utils.twilio_utils import send_whatsapp_message
 from utils.fluxo_vendas import listar_categorias, listar_produtos_categoria, adicionar_ao_carrinho, ver_carrinho
+# IMPORTANTE: A função get_db_connection DEVE SER IMPORTADA de um módulo centralizado
+# Exemplo: from utils.db_utils import get_db_connection
+# Para fins desta correção, assumimos que ela está em utils/db_utils.py
+from utils.db_utils import get_db_connection # <--- MELHORIA 2 APLICADA AQUI
 
 # Blueprints
 from routes.upload_csv import upload_csv_bp
@@ -27,15 +31,16 @@ openai_api_key = os.environ.get("OPENAI_API_KEY")
 RENDER_BASE_URL = "https://teste-bot-9ppl.onrender.com"  # Seu domínio público do Render
 client_openai = OpenAI(api_key=openai_api_key)
 
-# Conexão com o banco
-def get_db_connection():
-    return psycopg2.connect(
-        host=os.environ.get('DB_HOST'),
-        database=os.environ.get('DB_NAME'),
-        user=os.environ.get('DB_USER'),
-        password=os.environ.get('DB_PASSWORD'),
-        port=os.environ.get('DB_PORT', 5432)
-    )
+# A função get_db_connection foi movida para utils/db_utils.py (Melhoria 2)
+# Código anterior:
+# def get_db_connection():
+#     return psycopg2.connect(
+#         host=os.environ.get('DB_HOST'),
+#         database=os.environ.get('DB_NAME'),
+#         user=os.environ.get('DB_USER'),
+#         password=os.environ.get('DB_PASSWORD'),
+#         port=os.environ.get('DB_PORT', 5432)
+#     )
 
 def carregar_produtos_db():
     try:
@@ -50,7 +55,8 @@ def carregar_produtos_db():
         print(f"Erro ao carregar produtos do banco: {e}")
         return pd.DataFrame(columns=["nome", "descricao", "preco", "categoria"])
 
-def buscar_produto_csv(mensagem):
+# Funções renomeadas para refletir o uso do banco de dados (Melhoria 3)
+def buscar_produto_no_db(mensagem): # <--- NOME RENOMEADO
     df = carregar_produtos_db()
     mensagem_lower = mensagem.lower()
     resultados = df[df["nome"].str.contains(mensagem_lower)]
@@ -62,7 +68,7 @@ def buscar_produto_csv(mensagem):
         return "\n\n".join(respostas)
     return None
 
-def gerar_contexto_csv():
+def gerar_contexto_do_db(): # <--- NOME RENOMEADO
     df = carregar_produtos_db()
     contextos = []
     for _, row in df.iterrows():
@@ -92,10 +98,10 @@ def buscar_produto_detalhado(mensagem):
             }
     except Exception as e:
         print(f"Erro buscar produto detalhado: {e}")
-    return None
+        return None # Importante retornar None em caso de erro
 
 def get_gpt_response(mensagem):
-    contexto_produtos = gerar_contexto_csv()
+    contexto_produtos = gerar_contexto_do_db() # <--- CHAMADA ATUALIZADA
     prompt = f"""
 Você é um assistente virtual de vendas da loja Semente Viva, especializada em produtos naturais.
 Seu objetivo é oferecer um atendimento humanizado, simpático e eficiente, guiando o cliente durante toda a jornada de compra.
@@ -137,41 +143,34 @@ Mensagem do cliente: {mensagem}
     )
     return response.choices[0].message.content.strip()
 
-# =========================
-# ROTAS PARA IMAGEM PRODUTO
-# =========================
-
-@app.route('/upload_imagem/<int:produto_id>', methods=['POST'])
-def upload_imagem(produto_id):
-    if 'imagem' not in request.files:
-        return jsonify({'success': False, 'message': 'Nenhum arquivo enviado.'})
-    file = request.files['imagem']
+# Nova função auxiliar para salvar conversas (Melhoria 4)
+def salvar_conversa(contato, mensagem_usuario, resposta_bot):
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute(
-            "UPDATE produtos SET imagem = %s WHERE id = %s",
-            (psycopg2.Binary(file.read()), produto_id)
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO conversas (contato, mensagem_usuario, resposta_bot, data_hora) VALUES (%s, %s, %s, %s)",
+            (contato, mensagem_usuario, resposta_bot, datetime.now())
         )
         conn.commit()
-        cur.close()
         conn.close()
-        return jsonify({'success': True, 'message': 'Imagem enviada com sucesso!'})
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)})
+        print(f"Erro ao salvar conversa: {e}")
 
-@app.route('/ver_produtos/imagem/<int:produto_id>')
-def ver_imagem(produto_id):
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT imagem FROM produtos WHERE id = %s", (produto_id,))
-    result = cur.fetchone()
-    cur.close()
-    conn.close()
-    if result and result[0]:
-        return Response(result[0], mimetype="image/jpeg")
-    else:
-        abort(404)
+# =========================
+# ROTAS PARA IMAGEM PRODUTO - REMOVIDAS DE APP.PY (Melhoria 1)
+# ELAS ESTÃO AGORA APENAS NO BLUEPRINT ver_produtos_bp
+# =========================
+
+# Código ANTERIOR:
+# @app.route('/upload_imagem/<int:produto_id>', methods=['POST'])
+# def upload_imagem(produto_id):
+#     # ... (lógica da rota)
+
+# @app.route('/ver_produtos/imagem/<int:produto_id>')
+# def ver_imagem(produto_id):
+#     # ... (lógica da rota)
+
 
 # =========================
 # Webhook WhatsApp
@@ -193,6 +192,7 @@ def whatsapp_webhook():
             to_number=sender_number,
             body=resposta_final
         )
+        salvar_conversa(sender_number, user_message, resposta_final) # <--- LOG ADICIONADO
         return "OK", 200
 
     elif user_message_lower in ["carrinho", "ver carrinho"]:
@@ -201,6 +201,7 @@ def whatsapp_webhook():
             to_number=sender_number,
             body=resposta_final
         )
+        salvar_conversa(sender_number, user_message, resposta_final) # <--- LOG ADICIONADO
         return "OK", 200
 
     elif user_message.isdigit():
@@ -209,6 +210,7 @@ def whatsapp_webhook():
             to_number=sender_number,
             body=resposta_final
         )
+        salvar_conversa(sender_number, user_message, resposta_final) # <--- LOG ADICIONADO
         return "OK", 200
 
     elif user_message_lower in ["chá", "chás", "suplementos", "óleos", "veganos"]:
@@ -217,6 +219,7 @@ def whatsapp_webhook():
             to_number=sender_number,
             body=resposta_final
         )
+        salvar_conversa(sender_number, user_message, resposta_final) # <--- LOG ADICIONADO
         return "OK", 200
 
     # NOVO: resposta para consultas por produto com envio de imagem
@@ -229,6 +232,7 @@ def whatsapp_webhook():
             "Confira a imagem do produto abaixo." if produto_detalhado["tem_imagem"] else ""
         )
         if produto_detalhado["tem_imagem"]:
+            # A URL da imagem agora aponta para o Blueprint ver_produtos_bp
             img_url = f"{RENDER_BASE_URL}/ver_produtos/imagem/{produto_detalhado['id']}"
             send_whatsapp_message(
                 to_number=sender_number,
@@ -240,28 +244,17 @@ def whatsapp_webhook():
                 to_number=sender_number,
                 body=resposta_final
             )
-        # Log de conversa
-        try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO conversas (contato, mensagem_usuario, resposta_bot, data_hora) VALUES (%s, %s, %s, %s)",
-                (sender_number, user_message, resposta_final, datetime.now())
-            )
-            conn.commit()
-            conn.close()
-        except Exception as e:
-            print(f"Erro ao salvar conversa: {e}")
+        salvar_conversa(sender_number, user_message, resposta_final) # <--- CHAMADA DA FUNÇÃO AUXILIAR
         return "OK", 200
 
     # Caso não encontre produto, segue fluxo padrão com busca por nome ou IA
-    resposta_csv = buscar_produto_csv(user_message)
-    if resposta_csv:
+    resposta_db = buscar_produto_no_db(user_message) # <--- CHAMADA ATUALIZADA
+    if resposta_db:
         send_whatsapp_message(
             to_number=sender_number,
-            body=resposta_csv
+            body=resposta_db
         )
-        resposta_final = resposta_csv
+        resposta_final = resposta_db
     else:
         resposta_final = get_gpt_response(user_message)
         send_whatsapp_message(
@@ -269,18 +262,7 @@ def whatsapp_webhook():
             body=resposta_final
         )
 
-    # Salva no banco (usando data_hora)
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO conversas (contato, mensagem_usuario, resposta_bot, data_hora) VALUES (%s, %s, %s, %s)",
-            (sender_number, user_message, resposta_final, datetime.now())
-        )
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        print(f"Erro ao salvar conversa: {e}")
+    salvar_conversa(sender_number, user_message, resposta_final) # <--- CHAMADA DA FUNÇÃO AUXILIAR
     return "OK", 200
 
 @app.route("/conversas", methods=["GET", "POST"])
