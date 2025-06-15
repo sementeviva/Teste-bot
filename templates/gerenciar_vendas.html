@@ -1,93 +1,124 @@
-<!-- templates/gerenciar_vendas.html -->
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerenciar Vendas</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Tailwind CSS para estilização -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome para ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <!-- Axios para requisições HTTP -->
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <style>
-        body {
-            padding-top: 20px;
-        }
-        .container {
-            max-width: 1200px;
-        }
-        .table-responsive {
-            margin-top: 20px;
-        }
-    </style>
 </head>
-<body>
-    <div class="container">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Gerenciar Vendas</h1>
-            <a href="{{ url_for('home') }}" class="btn btn-secondary">
-                <i class="bi bi-arrow-left-circle me-2"></i> Voltar ao Painel
-            </a>
+<body class="bg-gray-100 p-4 md:p-8">
+    <div class="container mx-auto bg-white p-6 rounded-lg shadow-md">
+
+        <!-- Cabeçalho -->
+        <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+            <div class="flex items-center gap-4">
+                <a href="{{ url_for('home') }}" class="text-blue-600 hover:text-blue-800" title="Voltar ao Painel">
+                    <i class="fas fa-arrow-left fa-lg"></i>
+                </a>
+                <h1 class="text-3xl font-bold text-gray-800">Vendas Finalizadas</h1>
+            </div>
+            <div id="loading-indicator" class="flex items-center text-gray-500 gap-2">
+                <div class="spinner-border spinner-border-sm" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <span>Atualizando...</span>
+            </div>
         </div>
 
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead>
+        <!-- Tabela de Vendas -->
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-800 text-white">
                     <tr>
-                        <th>ID da Venda</th>
-                        <th>Data/Hora</th>
-                        <th>Nome do Cliente</th> <!-- ALTERADO: de ID do Cliente para Nome do Cliente -->
-                        <th>Produtos Vendidos</th>
-                        <th>Valor Total</th>
-                        <th>Status</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">ID Venda</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Data/Hora</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Cliente</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Produtos Vendidos</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Valor Total</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Status</th>
                     </tr>
                 </thead>
-                <tbody id="vendas-tbody">
-                    <!-- As vendas serão carregadas aqui via JavaScript -->
+                <tbody id="vendas-tbody" class="bg-white divide-y divide-gray-200">
+                    <!-- Conteúdo será carregado aqui via JavaScript -->
                     <tr>
-                        <td colspan="6" class="text-center">Carregando vendas...</td>
+                        <td colspan="6" class="text-center p-10 text-gray-500">
+                            <i class="fas fa-spinner fa-spin mr-2"></i>Carregando vendas...
+                        </td>
                     </tr>
                 </tbody>
             </table>
         </div>
+
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Bootstrap JS (apenas para o spinner, se desejar animação) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
     <script>
-        function atualizarVendas() {
-            axios.get('/gerenciar_vendas/api/vendas')
-                .then(response => {
-                    const vendas = response.data;
-                    const tbody = document.getElementById('vendas-tbody');
-                    tbody.innerHTML = '';
+        const tbody = document.getElementById('vendas-tbody');
+        const loadingIndicator = document.getElementById('loading-indicator');
 
-                    if (vendas.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="6" class="text-center">Nenhuma venda encontrada.</td></tr>';
-                        return;
-                    }
+        /**
+         * Busca os dados das vendas na API e atualiza a tabela.
+         */
+        async function atualizarVendas() {
+            loadingIndicator.style.visibility = 'visible'; // Mostra o indicador de carregamento
+            try {
+                // Faz a chamada para a API que criamos no backend
+                const response = await axios.get('/gerenciar_vendas/api/vendas');
+                const vendas = response.data;
 
-                    vendas.forEach(venda => {
-                        const row = `
-                            <tr>
-                                <td>${venda.id}</td>
-                                <td>${venda.data_hora}</td>
-                                <td>${venda.nome_cliente}</td> <!-- ALTERADO: de venda.cliente_id para venda.nome_cliente -->
-                                <td>${venda.produtos_vendidos}</td>
-                                <td>R$ ${parseFloat(venda.valor_total).toFixed(2).replace('.', ',')}</td>
-                                <td>${venda.status}</td>
-                            </tr>
-                        `;
-                        tbody.innerHTML += row;
-                    });
-                })
-                .catch(error => {
-                    console.error('Erro ao buscar vendas:', error);
-                    const tbody = document.getElementById('vendas-tbody');
-                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Erro ao carregar vendas.</td></tr>';
+                // Limpa o corpo da tabela antes de adicionar novas linhas
+                tbody.innerHTML = '';
+
+                if (vendas.error) {
+                    throw new Error(vendas.details || vendas.error);
+                }
+
+                if (vendas.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="text-center p-10 text-gray-500">Nenhuma venda finalizada encontrada.</td></tr>`;
+                    return;
+                }
+
+                // Itera sobre cada venda e cria uma linha na tabela
+                vendas.forEach(venda => {
+                    const row = `
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#${venda.id}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${venda.data_venda}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${venda.cliente_id}</td>
+                            <td class="px-6 py-4 text-sm text-gray-600">${venda.produtos_vendidos}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-800">R$ ${venda.valor_total}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                    ${venda.status}
+                                </span>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
                 });
+
+            } catch (error) {
+                console.error('Erro ao buscar vendas:', error);
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center p-10 text-red-600">Erro ao carregar as vendas. Verifique o console para mais detalhes.</td></tr>`;
+            } finally {
+                // Esconde o indicador de carregamento após a conclusão (com ou sem erro)
+                loadingIndicator.style.visibility = 'hidden'; 
+            }
         }
 
+        // Executa a função quando a página carrega
         document.addEventListener('DOMContentLoaded', atualizarVendas);
-        setInterval(atualizarVendas, 5000);
+
+        // Atualiza a lista de vendas a cada 30 segundos
+        setInterval(atualizarVendas, 30000); 
     </script>
 </body>
 </html>
+
