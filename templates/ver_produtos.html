@@ -2,270 +2,242 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Produtos</title>
-    <!-- Inclua Bootstrap CSS aqui -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciar Produtos</title>
+    <!-- Tailwind CSS para um design moderno -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Bootstrap CSS e JS para componentes como o Modal -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Inclua Font Awesome para ícones -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHC44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Font Awesome para ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
-        /* Mantenho seu CSS para elementos específicos que não serão totalmente substituídos pelo Bootstrap */
+        /* Pequenos ajustes para complementar os frameworks */
         body {
-            padding: 20px; /* Adiciona um padding geral para a página não ficar colada nas bordas */
+            background-color: #f8fafc; /* bg-gray-50 do Tailwind */
         }
-        table {
-            width:100%;
-            border-collapse:collapse;
-            margin-top: 20px; /* Espaçamento da tabela do título/botão */
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-        }
-        /* As cores de th e tr:nth-child(even) serão substituídas pelas classes Bootstrap table-dark ou table-striped,
-           mas deixo aqui caso prefira manter o estilo original */
-        th {
-            background-color: #4CAF50; /* Verde original */
-            color: white;
-        }
-        tr:nth-child(even) {
-            background-color: #f2f2f2;
-        }
-        img {
-            max-width: 100px;
-            max-height: 50px;
-        }
-        .message {
-            margin-top: 10px;
-            font-weight: bold;
-        }
-        .success {
-            color: green;
-        }
-        .error {
-            color: red;
-        }
-        .header-actions {
-            display: flex;
-            justify-content: space-between; /* Alinha o título à esquerda e o botão à direita */
-            align-items: center;
-            margin-bottom: 20px; /* Espaçamento abaixo do cabeçalho */
-        }
-        /* NOVO CSS para o botão Voltar e o título */
-        .header-actions > div { /* Estilo para o novo div que agrupa o botão e o título */
-            display: flex;
-            align-items: center;
-            gap: 15px; /* Espaçamento entre o botão e o título */
+        .table-responsive {
+            max-height: 70vh; /* Altura máxima para a tabela antes de adicionar scroll */
         }
     </style>
 </head>
-<body>
-    <div class="container">
-        <!-- Parte superior da tela: Título e Botão "Inserir Novo Produto" -->
-        <div class="header-actions">
-            <div> <!-- NOVO: div para agrupar o botão Voltar e o título "Produtos" -->
-                <a href="{{ url_for('home') }}" class="btn btn-secondary me-2"> <!-- Botão Voltar ao Painel -->
-                    <i class="fas fa-arrow-left"></i> Voltar ao Painel
+<body class="p-4 md:p-8">
+    <div class="container mx-auto">
+
+        <!-- Cabeçalho da Página -->
+        <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+            <div class="flex items-center gap-4">
+                <a href="{{ url_for('home') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i>
+                    <span class="hidden md:inline ms-2">Voltar ao Painel</span>
                 </a>
-                <h2>Produtos</h2>
+                <h1 class="text-3xl font-bold text-gray-800">Produtos</h1>
             </div>
-            <!-- Botão para Inserir Novo Produto (já existente) -->
-            <a href="{{ url_for('edit_produtos_bp.editar_produto', produto_id=0) }}" class="btn btn-success">
-                <i class="fas fa-plus-circle"></i> Inserir Novo Produto
+            <a href="{{ url_for('edit_produtos_bp.editar_produto', produto_id=0) }}" class="btn btn-success w-full md:w-auto">
+                <i class="fas fa-plus-circle me-2"></i> Inserir Novo Produto
             </a>
         </div>
 
-        <!-- Filtro de Busca - NOVO -->
-        <div class="mb-3">
+        <!-- Filtro de Busca -->
+        <div class="mb-4">
             <div class="input-group">
                 <input type="text" id="filtroNome" class="form-control" placeholder="Buscar por nome..." value="{{ nome_filtro }}">
-                <button onclick="filtrarProdutos()" class="btn btn-primary">Filtrar</button>
+                <button onclick="filtrarProdutos()" class="btn btn-primary">
+                    <i class="fas fa-search"></i>
+                    <span class="hidden md:inline ms-2">Filtrar</span>
+                </button>
             </div>
         </div>
 
-        <!-- Mensagens de sucesso/erro (mantidas com seu estilo original, mas podem ser adaptadas para alerts Bootstrap) -->
-        <div id="mensagem" class="message"></div>
-
-        <!-- Tabela de Produtos -->
-        <table class="table table-striped table-hover"> <!-- Adicionadas classes Bootstrap para estilo -->
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Nome</th>
-                    <th>Preço</th>
-                    <th>Descrição</th>
-                    <th>Categoria</th>
-                    <th>Imagem</th>
-                    <th>Ativo</th>
-                    <th>Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for produto in produtos %}
-                <tr id="row-{{ produto[0] }}">
-                    <td>{{ produto[0] }}</td>
-                    <td><input type="text" id="nome-{{ produto[0] }}" value="{{ produto[1] }}" class="form-control"></td>
-                    <td><input type="number" id="preco-{{ produto[0] }}" value="{{ produto[2] }}" step="0.01" class="form-control"></td>
-                    <td><input type="text" id="descricao-{{ produto[0] }}" value="{{ produto[3] }}" class="form-control"></td>
-                    <td>
-                        <select id="categoria-{{ produto[0] }}" class="form-select">
-                        {% for categoria in categorias %}
-                            <option value="{{ categoria }}" {% if produto[4] == categoria %}selected{% endif %}>{{ categoria }}</option>
-                        {% endfor %}
-                        </select>
-                    </td>
-                    <td>
-                        {% if produto[5] %}
-                            <img src="{{ url_for('ver_produtos_bp.imagem_produto', produto_id=produto[0]) }}" alt="{{ produto[1] }}" class="img-fluid">
-                        {% endif %}
-                        <form onsubmit="return enviarImagem(event, {{ produto[0] }})" enctype="multipart/form-data" class="mt-2">
-                            <input type="file" name="imagem" accept="image/*" class="form-control form-control-sm">
-                            <button type="submit" class="btn btn-sm btn-primary mt-1">Upload</button>
-                        </form>
-                    </td>
-                    <td>
-                        <input type="checkbox" id="ativo-{{ produto[0] }}" {% if produto[6] %}checked{% endif %} class="form-check-input">
-                    </td>
-                    <td>
-                        <button onclick="salvar({{ produto[0] }})" class="btn btn-sm btn-info me-2">Salvar</button>
-                        <button onclick="excluirProduto({{ produto[0] }})" class="btn btn-sm btn-danger">Excluir</button> <!-- NOVO BOTÃO EXCLUIR -->
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <!-- Tabela de Produtos com Scroll -->
+        <div class="table-responsive bg-white rounded-lg shadow">
+            <table class="table table-striped table-hover align-middle">
+                <thead class="table-dark sticky-top">
+                    <tr>
+                        <th>ID</th>
+                        <th>Nome</th>
+                        <th>Preço (R$)</th>
+                        <th>Descrição</th>
+                        <th>Categoria</th>
+                        <th>Imagem</th>
+                        <th>Ativo</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for produto in produtos %}
+                    <tr id="row-{{ produto[0] }}">
+                        <td class="font-bold">{{ produto[0] }}</td>
+                        <td><input type="text" id="nome-{{ produto[0] }}" value="{{ produto[1] }}" class="form-control"></td>
+                        <td><input type="number" id="preco-{{ produto[0] }}" value="{{ '%.2f'|format(produto[2]) }}" step="0.01" class="form-control"></td>
+                        <td><input type="text" id="descricao-{{ produto[0] }}" value="{{ produto[3] }}" class="form-control"></td>
+                        <td>
+                            <select id="categoria-{{ produto[0] }}" class="form-select">
+                                {% for categoria in categorias %}
+                                <option value="{{ categoria }}" {% if produto[4] == categoria %}selected{% endif %}>{{ categoria }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            {% if produto[5] %}
+                                <img src="{{ url_for('ver_produtos_bp.imagem_produto', produto_id=produto[0]) }}" alt="{{ produto[1] }}" class="img-thumbnail" style="max-width: 80px;">
+                            {% else %}
+                                <span class="text-xs text-gray-500">Sem imagem</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="form-check form-switch flex justify-center">
+                                <input type="checkbox" role="switch" id="ativo-{{ produto[0] }}" {% if produto[6] %}checked{% endif %} class="form-check-input h-6 w-10">
+                            </div>
+                        </td>
+                        <td class="text-nowrap">
+                            <button onclick="salvar({{ produto[0] }})" class="btn btn-sm btn-info" title="Salvar Alterações"><i class="fas fa-save"></i></button>
+                            <button onclick="confirmarExclusao({{ produto[0] }})" class="btn btn-sm btn-danger" title="Excluir Produto"><i class="fas fa-trash-alt"></i></button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center p-5">Nenhum produto encontrado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 
-    <!-- Modal para mensagens - NOVO CÓDIGO -->
-    <div class="modal fade" id="mensagemModal" tabindex="-1" aria-labelledby="mensagemModalLabel" aria-hidden="true">
+    <!-- Modal para Mensagens de Feedback -->
+    <div class="modal fade" id="mensagemModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="mensagemModalLabel">Mensagem</h5>
+          <div class="modal-header" id="modalHeader">
+            <h5 class="modal-title" id="modalTitle"></h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
-          <div class="modal-body">
-            <span id="modalMensagem"></span> <!-- Onde a mensagem será exibida -->
-          </div>
+          <div class="modal-body" id="modalMessage"></div>
           <div class="modal-footer">
             <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
           </div>
         </div>
       </div>
     </div>
+    
+    <!-- Modal de Confirmação para Exclusão -->
+    <div class="modal fade" id="confirmacaoExclusaoModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header bg-danger text-white">
+            <h5 class="modal-title">Confirmar Exclusão</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            Tem certeza que deseja excluir este produto? Esta ação não pode ser desfeita.
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-danger" id="btnConfirmarExclusao">Excluir</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
-    <!-- Inclua Bootstrap JS aqui (bundle inclui Popper) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
     <script>
-    // AJAX para salvar edição
+    const mensagemModal = new bootstrap.Modal(document.getElementById('mensagemModal'));
+    const confirmacaoModal = new bootstrap.Modal(document.getElementById('confirmacaoExclusaoModal'));
+    
+    /**
+     * Exibe um modal de feedback para o usuário.
+     * @param {string} title - Título do modal.
+     * @param {string} message - Mensagem a ser exibida.
+     * @param {boolean} isSuccess - Define a cor do cabeçalho (verde para sucesso, vermelho para erro).
+     */
+    function showFeedback(title, message, isSuccess) {
+        const modalHeader = document.getElementById('modalHeader');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+
+        modalTitle.textContent = title;
+        modalMessage.textContent = message;
+        modalHeader.className = `modal-header ${isSuccess ? 'bg-success text-white' : 'bg-danger text-white'}`;
+        
+        mensagemModal.show();
+    }
+
+    /**
+     * Envia os dados de um produto para a rota de edição no backend via AJAX.
+     * @param {number} id - O ID do produto a ser salvo.
+     */
     function salvar(id) {
-        const nome = document.getElementById('nome-' + id).value;
-        const preco = document.getElementById('preco-' + id).value;
-        const descricao = document.getElementById('descricao-' + id).value;
-        const categoria = document.getElementById('categoria-' + id).value;
-        const ativo = document.getElementById('ativo-' + id).checked;
-        fetch('{{ url_for("ver_produtos_bp.editar_produto_inline") }}', { // Use url_for para a rota correta
+        const data = {
+            id: id,
+            nome: document.getElementById('nome-' + id).value,
+            preco: document.getElementById('preco-' + id).value,
+            descricao: document.getElementById('descricao-' + id).value,
+            categoria: document.getElementById('categoria-' + id).value,
+            ativo: document.getElementById('ativo-' + id).checked,
+        };
+
+        fetch('{{ url_for("ver_produtos_bp.editar_produto_inline") }}', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ id: id, nome: nome, preco: preco, descricao: descricao, categoria: categoria, ativo: ativo }) // Incluir id aqui
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
         })
         .then(res => res.json())
-        .then(data => {
-            // Remove a classe 'message' e 'success'/'error' do div 'mensagem'
-            // pois agora usaremos o modal
-            const mensagemDiv = document.getElementById('mensagem');
-            mensagemDiv.textContent = '';
-            mensagemDiv.className = 'message'; // Reseta as classes
-
-            // Exibe o modal com a mensagem de sucesso ou erro
-            const modal = new bootstrap.Modal(document.getElementById('mensagemModal'));
-            document.getElementById('modalMensagem').textContent = data.message; // Define a mensagem no modal
-            modal.show(); // Exibe o modal
+        .then(result => {
+            showFeedback(
+                result.success ? 'Sucesso!' : 'Erro!',
+                result.message,
+                result.success
+            );
         })
         .catch(error => {
-            console.error('Erro ao salvar:', error); // Log do erro para depuração
-            // Remove as classes de mensagem do div 'mensagem'
-            const mensagemDiv = document.getElementById('mensagem');
-            mensagemDiv.textContent = '';
-            mensagemDiv.className = 'message'; // Reseta as classes
-
-            // Exibe o modal com a mensagem de erro padrão
-            const modal = new bootstrap.Modal(document.getElementById('mensagemModal'));
-            document.getElementById('modalMensagem').textContent = 'Erro ao salvar. Verifique o console para detalhes.'; // Define a mensagem de erro no modal
-            modal.show(); // Exibe o modal
+            console.error('Erro ao salvar:', error);
+            showFeedback('Erro de Rede', 'Não foi possível salvar as alterações. Verifique sua conexão.', false);
         });
     }
 
-    // AJAX para upload de imagem - SOLUÇÃO FINAL (Construção direta da URL em JS)
-    function enviarImagem(event, id) {
-        event.preventDefault();
-        const form = event.target;
-        const fileInput = form.querySelector('input[type="file"]');
-        if (!fileInput.files.length) {
-            alert("Selecione um arquivo primeiro.");
-            return false;
-        }
-        const formData = new FormData();
-        formData.append('imagem', fileInput.files[0]);
-
-        // CONSTRÓI A URL INTEIRAMENTE NO JAVASCRIPT
-        // Isso evita os problemas de validação de 'url_for' com parâmetros obrigatórios de tipo 'int'
-        // A URL será /ver_produtos/upload_imagem/ID_DO_PRODUTO
-        const uploadUrl = `/ver_produtos/upload_imagem/${id}`;
-
-        fetch(uploadUrl, {
-            method: 'POST',
-            body: formData
-        })
+    /**
+     * Abre um modal para que o usuário confirme a exclusão de um produto.
+     * @param {number} id - O ID do produto a ser excluído.
+     */
+    function confirmarExclusao(id) {
+        const btnConfirmar = document.getElementById('btnConfirmarExclusao');
+        // Usamos .onclick para garantir que a função seja substituída a cada chamada,
+        // evitando que o ID antigo seja usado.
+        btnConfirmar.onclick = () => excluirProduto(id);
+        confirmacaoModal.show();
+    }
+    
+    /**
+     * Envia a requisição de exclusão para o backend via AJAX após confirmação.
+     * @param {number} id - O ID do produto a ser excluído.
+     */
+    function excluirProduto(id) {
+        fetch(`/ver_produtos/excluir/${id}`, { method: 'POST' })
         .then(res => res.json())
-        .then(data => {
-            const mensagem = document.getElementById('mensagem');
-            mensagem.textContent = data.message;
-            mensagem.className = 'message ' + (data.success ? 'success' : 'error');
-            if (data.success) location.reload();
+        .then(result => {
+            confirmacaoModal.hide(); // Esconde o modal de confirmação
+            showFeedback(
+                result.success ? 'Sucesso!' : 'Erro!',
+                result.message,
+                result.success
+            );
+            if (result.success) {
+                document.getElementById(`row-${id}`).remove();
+            }
         })
         .catch(error => {
-            console.error('Erro no upload:', error); // Log do erro para depuração
-            const mensagem = document.getElementById('mensagem');
-            mensagem.textContent = 'Erro no upload. Verifique o console para detalhes.';
-            mensagem.className = 'message error';
+            console.error('Erro ao excluir:', error);
+            confirmacaoModal.hide();
+            showFeedback('Erro de Rede', 'Não foi possível excluir o produto.', false);
         });
-        return false;
     }
 
-    // Função para Filtrar Produtos - NOVO
+    /**
+     * Redireciona o usuário para a mesma página com um parâmetro de busca na URL.
+     */
     function filtrarProdutos() {
         const filtroNome = document.getElementById('filtroNome').value;
-        // Redireciona para a mesma página, adicionando o parâmetro 'nome' na URL
-        window.location.href = `{{ url_for('ver_produtos_bp.ver_produtos') }}?nome=${filtroNome}`;
-    }
-
-    // Função para Excluir Produto - NOVO
-    function excluirProduto(id) {
-        if (confirm('Tem certeza que deseja excluir este produto?')) {
-            fetch(`/ver_produtos/excluir/${id}`, { // Usa a rota de exclusão no backend
-                method: 'POST' // Ou 'DELETE' se você mudar o método da rota no Python
-            })
-            .then(res => res.json())
-            .then(data => {
-                const modal = new bootstrap.Modal(document.getElementById('mensagemModal'));
-                document.getElementById('modalMensagem').textContent = data.message;
-                modal.show(); // Exibe o modal com a mensagem
-                if (data.success) {
-                    // Remove a linha da tabela se a exclusão foi bem-sucedida
-                    document.getElementById(`row-${id}`).remove();
-                }
-            })
-            .catch(error => {
-                console.error('Erro ao excluir:', error);
-                const modal = new bootstrap.Modal(document.getElementById('mensagemModal'));
-                document.getElementById('modalMensagem').textContent = 'Erro ao excluir o produto. Verifique o console para detalhes.';
-                modal.show();
-            });
-        }
+        window.location.href = `{{ url_for('ver_produtos_bp.ver_produtos') }}?nome=${encodeURIComponent(filtroNome)}`;
     }
     </script>
 </body>
