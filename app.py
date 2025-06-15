@@ -99,33 +99,42 @@ def whatsapp_webhook():
     if not sender_number or not user_message:
         return "Dados insuficientes", 400
 
-    # --- INÍCIO DA NOVA LÓGICA "LIGA/DESLIGA" ---
+    # --- INÍCIO DA LÓGICA "LIGA/DESLIGA" (REVISADA) ---
     conn = get_db_connection()
     try:
-        # Usamos RealDictCursor para acessar a coluna pelo nome
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            # Verifica se existe uma venda/atendimento aberto para este cliente
-            cur.execute("SELECT modo_atendimento FROM vendas WHERE cliente_id = %s AND status = 'aberto' LIMIT 1", (sender_number,))
+            # DEBUG: Log para ver o número que estamos procurando
+            print(f"--- DEBUG: Verificando modo para o contato: '{sender_number}' ---")
+
+            cur.execute(
+                "SELECT modo_atendimento FROM vendas WHERE cliente_id = %s AND status = 'aberto' LIMIT 1",
+                (sender_number,)
+            )
             venda_ativa = cur.fetchone()
-            
-            modo_atual = venda_ativa['modo_atendimento'] if venda_ativa else 'bot'
 
-            # Se o modo for 'manual', o bot não deve responder.
-            # Apenas salvamos a mensagem para o atendente ver e encerramos.
-            if modo_atual == 'manual':
-                print(f"Modo manual ativado para {sender_number}. Mensagem recebida e registrada.")
-                salvar_conversa(sender_number, user_message, "--- MENSAGEM RECEBIDA EM MODO MANUAL ---")
-                return "OK", 200 # Encerra a função aqui
-
+            if venda_ativa:
+                modo_atual = venda_ativa['modo_atendimento']
+                # DEBUG: Log para ver o que foi encontrado no banco
+                print(f"--- DEBUG: Encontrada conversa ativa. Modo: '{modo_atual}' ---")
+                
+                if modo_atual == 'manual':
+                    print(f"--- INFO: Modo manual confirmado para '{sender_number}'. Bot silenciado. ---")
+                    salvar_conversa(sender_number, user_message, "--- MENSAGEM RECEBIDA EM MODO MANUAL ---")
+                    conn.close() # Fechamos a conexão antes de sair
+                    return "OK", 200
+            else:
+                # DEBUG: Log para o caso de não encontrar conversa ativa
+                print(f"--- DEBUG: Nenhuma conversa ativa encontrada para '{sender_number}'. Modo padrão: 'bot'. ---")
+    
     except Exception as e:
-        print(f"Erro ao verificar modo de atendimento: {e}")
+        print(f"--- ERRO: Falha ao verificar modo de atendimento: {e} ---")
     finally:
         if conn:
             conn.close()
-    # --- FIM DA NOVA LÓGICA ---
+    # --- FIM DA LÓGICA ---
 
-    # Se o código chegou até aqui, significa que o modo é 'bot'.
-    # O restante da lógica do bot continua a mesma de antes.
+    # Se o código chegou aqui, o modo é 'bot'. A lógica original continua.
+    print(f"--- INFO: '{sender_number}' em modo bot. Processando mensagem... ---")
     
     resposta_final = ""
 
