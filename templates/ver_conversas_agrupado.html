@@ -12,6 +12,17 @@
         #chat-history::-webkit-scrollbar-track { background: #f1f1f1; }
         #chat-history::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
         .contato-item.active { background-color: #e0f2fe; }
+        /* Estilo para a bolha de notificação */
+        .unread-badge {
+            background-color: #ef4444; /* Vermelho */
+            color: white;
+            font-size: 0.75rem;
+            font-weight: bold;
+            border-radius: 9999px;
+            padding: 0.1rem 0.45rem;
+            min-width: 1.5rem;
+            text-align: center;
+        }
     </style>
 </head>
 <body class="bg-gray-100 h-screen flex flex-col p-4">
@@ -28,7 +39,14 @@
             <div id="contact-list" class="flex-1 overflow-y-auto">
                 {% for contato in contatos %}
                 <div id="contact-{{ contato.contato }}" onclick="selecionarConversa('{{ contato.contato }}', this)" class="contato-item p-4 cursor-pointer hover:bg-gray-50 border-b">
-                    <p class="font-bold text-gray-800">{{ contato.contato }}</p>
+                    <!-- ATUALIZADO: Adicionada div para alinhar nome e badge -->
+                    <div class="flex justify-between items-center">
+                        <p class="font-bold text-gray-800">{{ contato.contato }}</p>
+                        <!-- ATUALIZADO: Badge de não lidas -->
+                        {% if contato.nao_lidas > 0 %}
+                        <span id="badge-{{ contato.contato }}" class="unread-badge">{{ contato.nao_lidas }}</span>
+                        {% endif %}
+                    </div>
                     <div class="flex justify-between text-sm text-gray-500 mt-1">
                         <span>{{ contato.total_mensagens }} mensagens</span>
                         <span>{{ contato.ultima_mensagem.strftime('%d/%m %H:%M') }}</span>
@@ -49,7 +67,6 @@
                     <p class="mt-4">Selecione um contato para ver a conversa</p>
                 </div>
             </div>
-            <!-- INÍCIO DO NOVO FORMULÁRIO DE RESPOSTA RÁPIDA -->
             <div id="reply-container" class="p-4 bg-gray-100 border-t" style="display: none;">
                 <form id="reply-form" class="flex items-center gap-2">
                     <input type="text" id="reply-message" placeholder="Digite sua mensagem..." autocomplete="off" class="w-full py-2 px-4 rounded-full border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -58,18 +75,22 @@
                     </button>
                 </form>
             </div>
-            <!-- FIM DO FORMULÁRIO -->
         </div>
     </div>
 
 <script>
     let activeContactElement = null;
     let currentContact = null;
-    let pollingInterval = null; // Variável para controlar o "tempo real"
+    let pollingInterval = null;
 
     function selecionarConversa(contato, element) {
-        // Para a atualização automática da conversa anterior
         if (pollingInterval) clearInterval(pollingInterval);
+        
+        // ATUALIZADO: Remove o badge visualmente de forma imediata
+        const badge = document.getElementById(`badge-${contato}`);
+        if (badge) {
+            badge.style.display = 'none';
+        }
 
         currentContact = contato;
         if (activeContactElement) {
@@ -78,23 +99,24 @@
         if (element) {
             element.classList.add('active');
             activeContactElement = element;
-        } else { // Caso a função seja chamada sem um elemento (pelo polling)
+        } else {
             activeContactElement = document.getElementById(`contact-${contato}`);
             if(activeContactElement) activeContactElement.classList.add('active');
         }
         
         document.getElementById('reply-container').style.display = 'block';
-        carregarConversa(contato, false); // false = não é um refresh
+        carregarConversa(contato, false);
 
-        // Inicia a atualização automática a cada 5 segundos
         pollingInterval = setInterval(() => carregarConversa(contato, true), 5000);
     }
+    
+    // O restante do JavaScript permanece o mesmo, pois a lógica de carregar
+    // a conversa já aciona o backend que marca as mensagens como lidas.
     
     async function carregarConversa(contato, isRefresh) {
         const chatHistory = document.getElementById('chat-history');
         const chatHeader = document.getElementById('chat-header');
         
-        // Só mostra o spinner de carregamento na primeira vez, não nos refreshes
         if (!isRefresh) {
             chatHistory.innerHTML = '<div class="flex justify-center items-center h-full"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
             chatHeader.innerHTML = '';
@@ -111,45 +133,22 @@
             const historico = historyRes.data;
             const scrollAtBottom = chatHistory.scrollHeight - chatHistory.clientHeight <= chatHistory.scrollTop + 1;
             
-            chatHistory.innerHTML = ''; // Limpa o histórico para redesenhar
+            chatHistory.innerHTML = '';
             historico.forEach(msg => {
                 const dataFormatada = new Date(msg.data_hora).toLocaleString('pt-BR', { timeStyle: 'short', dateStyle: 'short' });
 
-                // Distingue entre mensagem do usuário, do bot e do atendente
                 if (msg.mensagem_usuario !== '--- RESPOSTA MANUAL DO PAINEL ---') {
-                    // Mensagem do Cliente (bolha azul)
-                    chatHistory.innerHTML += `
-                        <div class="flex justify-end mb-4">
-                            <div class="bg-blue-500 text-white rounded-lg py-2 px-4 max-w-sm">
-                                <p>${msg.mensagem_usuario}</p>
-                                <p class="text-right text-xs text-blue-200 mt-1">${dataFormatada}</p>
-                            </div>
-                        </div>`;
+                    chatHistory.innerHTML += `<div class="flex justify-end mb-4"><div class="bg-blue-500 text-white rounded-lg py-2 px-4 max-w-sm"><p>${msg.mensagem_usuario}</p><p class="text-right text-xs text-blue-200 mt-1">${dataFormatada}</p></div></div>`;
                 }
 
                 if (msg.resposta_bot.startsWith('[ATENDENTE]:')) {
-                    // Mensagem do Atendente (bolha verde)
                     const atendenteMsg = msg.resposta_bot.replace('[ATENDENTE]: ', '');
-                    chatHistory.innerHTML += `
-                        <div class="flex justify-end mb-4">
-                            <div class="bg-green-500 text-white rounded-lg py-2 px-4 max-w-sm">
-                                <p>${atendenteMsg}</p>
-                                <p class="text-right text-xs text-green-200 mt-1">${dataFormatada}</p>
-                            </div>
-                        </div>`;
+                    chatHistory.innerHTML += `<div class="flex justify-end mb-4"><div class="bg-green-500 text-white rounded-lg py-2 px-4 max-w-sm"><p>${atendenteMsg}</p><p class="text-right text-xs text-green-200 mt-1">${dataFormatada}</p></div></div>`;
                 } else if (msg.resposta_bot !== "--- MENSAGEM RECEBIDA EM MODO MANUAL ---") {
-                    // Mensagem do Bot (bolha cinza)
-                     chatHistory.innerHTML += `
-                        <div class="flex justify-start mb-4">
-                            <div class="bg-gray-200 text-gray-800 rounded-lg py-2 px-4 max-w-sm">
-                                <p>${msg.resposta_bot}</p>
-                                <p class="text-right text-xs text-gray-500 mt-1">${dataFormatada}</p>
-                            </div>
-                        </div>`;
+                     chatHistory.innerHTML += `<div class="flex justify-start mb-4"><div class="bg-gray-200 text-gray-800 rounded-lg py-2 px-4 max-w-sm"><p>${msg.resposta_bot}</p><p class="text-right text-xs text-gray-500 mt-1">${dataFormatada}</p></div></div>`;
                 }
             });
 
-            // Rola para o final se já estava no final
             if (scrollAtBottom) {
                 chatHistory.scrollTop = chatHistory.scrollHeight;
             }
@@ -181,7 +180,6 @@
         updateChatHeader(currentContact, novoModo);
     }
     
-    // Event listener para o formulário de resposta
     document.getElementById('reply-form').addEventListener('submit', async function(e) {
         e.preventDefault();
         const messageInput = document.getElementById('reply-message');
@@ -196,7 +194,6 @@
                 mensagem: message
             });
             messageInput.value = '';
-            // Atualiza a conversa imediatamente para mostrar a mensagem enviada
             await carregarConversa(currentContact, true);
         } catch (error) {
             alert('Falha ao enviar mensagem.');
