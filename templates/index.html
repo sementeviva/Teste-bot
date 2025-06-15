@@ -4,15 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel | Semente Viva</title>
-    <!-- Tailwind CSS para estilização principal -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome para ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
 <body class="bg-gray-100">
 
     <div class="container mx-auto px-4 py-8 md:py-12">
-        <!-- Cabeçalho -->
         <div class="text-center mb-10">
             <h1 class="text-4xl md:text-5xl font-bold text-gray-800">
                 Painel Semente Viva
@@ -20,10 +17,8 @@
             <p class="text-lg text-gray-600 mt-2">Gerencie sua loja e suas operações com facilidade.</p>
         </div>
 
-        <!-- Grade de Navegação com Cards -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 
-            <!-- Card: Gerenciar Produtos -->
             <a href="{{ url_for('ver_produtos_bp.ver_produtos') }}" class="block p-6 bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
                 <div class="flex items-center justify-center h-12 w-12 rounded-full bg-green-100 text-green-600 mb-4">
                     <i class="fas fa-box-open fa-lg"></i>
@@ -32,7 +27,6 @@
                 <p class="mt-2 text-gray-600">Visualize, edite, adicione e remova produtos do seu catálogo.</p>
             </a>
 
-            <!-- Card: Gerenciar Vendas -->
             <a href="{{ url_for('gerenciar_vendas_bp.gerenciar_vendas') }}" class="block p-6 bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
                 <div class="flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 text-blue-600 mb-4">
                     <i class="fas fa-shopping-cart fa-lg"></i>
@@ -41,8 +35,7 @@
                 <p class="mt-2 text-gray-600">Acompanhe os pedidos finalizados e os detalhes de cada venda.</p>
             </a>
 
-            <!-- Card: Histórico de Conversas -->
-            <a href="{{ url_for('ver_conversas_bp.ver_conversas') }}" class="block p-6 bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
+            <a href="{{ url_for('ver_conversas_bp.listar_contatos') }}" class="block p-6 bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
                 <div class="flex items-center justify-center h-12 w-12 rounded-full bg-purple-100 text-purple-600 mb-4">
                     <i class="fas fa-comments fa-lg"></i>
                 </div>
@@ -50,7 +43,6 @@
                 <p class="mt-2 text-gray-600">Analise o histórico de interações do chatbot com os clientes.</p>
             </a>
 
-            <!-- Card: Upload de CSV -->
             <a href="{{ url_for('upload_csv_bp.upload_csv') }}" class="block p-6 bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
                 <div class="flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 text-yellow-600 mb-4">
                     <i class="fas fa-file-upload fa-lg"></i>
@@ -62,11 +54,9 @@
         </div>
     </div>
 
-    <!-- Rodapé -->
     <footer class="text-center py-6 mt-8 text-gray-500">
         <small>Semente Viva &copy; 2025</small>
     </footer>
 
 </body>
 </html>
-
