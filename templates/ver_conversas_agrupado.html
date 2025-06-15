@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        /* Estilo para a barra de rolagem do chat */
+        #chat-history::-webkit-scrollbar { width: 8px; }
+        #chat-history::-webkit-scrollbar-track { background: #f1f1f1; }
+        #chat-history::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+        #chat-history::-webkit-scrollbar-thumb:hover { background: #555; }
+        .contato-item.active { background-color: #e0f2fe; } /* Azul claro para item ativo */
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex flex-col p-4">
+
+    <div class="flex items-center gap-4 mb-4">
+        <a href="{{ url_for('home') }}" class="text-blue-600 hover:text-blue-800" title="Voltar para o Painel">
+            <i class="fas fa-arrow-left fa-lg"></i>
+        </a>
+        <h1 class="text-3xl font-bold text-gray-800">Visualizador de Conversas</h1>
+    </div>
+
+    <div class="flex flex-1 bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="w-1/3 border-r border-gray-200 flex flex-col">
+            <div class="p-4 border-b">
+                <h2 class="text-xl font-semibold">Contatos</h2>
+            </div>
+            <div class="flex-1 overflow-y-auto">
+                {% for contato in contatos %}
+                <div onclick="carregarConversa('{{ contato.contato }}', this)"
+                     class="contato-item p-4 cursor-pointer hover:bg-gray-50 border-b border-gray-200">
+                    <p class="font-bold text-gray-800">{{ contato.contato }}</p>
+                    <div class="flex justify-between text-sm text-gray-500 mt-1">
+                        <span>{{ contato.total_mensagens }} mensagens</span>
+                        <span>{{ contato.ultima_mensagem.strftime('%d/%m %H:%M') }}</span>
+                    </div>
+                </div>
+                {% else %}
+                <p class="p-4 text-gray-500">Nenhum contato encontrado.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="w-2/3 flex flex-col">
+            <div id="chat-header" class="p-4 border-b h-[73px]">
+                </div>
+            <div id="chat-history" class="flex-1 p-6 overflow-y-auto bg-gray-50">
+                <div class="flex flex-col items-center justify-center h-full text-gray-400">
+                    <i class="fas fa-comments fa-4x"></i>
+                    <p class="mt-4">Selecione um contato para ver a conversa</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // Guarda o elemento do contato atualmente ativo
+    let activeContactElement = null;
+
+    async function carregarConversa(contato, element) {
+        const chatHistory = document.getElementById('chat-history');
+        const chatHeader = document.getElementById('chat-header');
+
+        // Remove a classe 'active' do contato anterior e adiciona no novo
+        if (activeContactElement) {
+            activeContactElement.classList.remove('active');
+        }
+        element.classList.add('active');
+        activeContactElement = element;
+
+        // Mostra um indicador de carregamento
+        chatHistory.innerHTML = '<div class="flex justify-center items-center h-full"><i class="fas fa-spinner fa-spin fa-2x text-gray-500"></i></div>';
+        chatHeader.innerHTML = `<h2 class="text-xl font-semibold text-gray-800">${contato}</h2>`;
+
+        try {
+            // Faz a chamada à API para buscar o histórico
+            const response = await axios.get(`/ver_conversas/api/conversas/${contato}`);
+            const historico = response.data;
+            
+            chatHistory.innerHTML = ''; // Limpa o painel
+
+            if (historico.length === 0) {
+                chatHistory.innerHTML = '<p class="text-center text-gray-500">Nenhuma mensagem encontrada para este contato.</p>';
+                return;
+            }
+            
+            // Constrói as "bolhas" de chat para cada mensagem
+            historico.forEach(msg => {
+                const dataFormatada = new Date(msg.data_hora).toLocaleString('pt-BR', { timeStyle: 'short', dateStyle: 'short' });
+
+                // Mensagem do usuário (direita)
+                const divUsuario = document.createElement('div');
+                divUsuario.className = 'flex justify-end mb-4';
+                divUsuario.innerHTML = `
+                    <div class="bg-blue-500 text-white rounded-lg py-2 px-4 max-w-sm">
+                        <p>${msg.mensagem_usuario}</p>
+                        <p class="text-right text-xs text-blue-200 mt-1">${dataFormatada}</p>
+                    </div>`;
+                chatHistory.appendChild(divUsuario);
+                
+                // Resposta do Bot (esquerda)
+                const divBot = document.createElement('div');
+                divBot.className = 'flex justify-start mb-4';
+                divBot.innerHTML = `
+                    <div class="bg-gray-200 text-gray-800 rounded-lg py-2 px-4 max-w-sm">
+                        <p>${msg.resposta_bot}</p>
+                         <p class="text-right text-xs text-gray-500 mt-1">${dataFormatada}</p>
+                    </div>`;
+                chatHistory.appendChild(divBot);
+            });
+
+            // Rola para a mensagem mais recente
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+
+        } catch (error) {
+            chatHistory.innerHTML = '<p class="text-center text-red-500">Erro ao carregar a conversa.</p>';
+            console.error(error);
+        }
+    }
+</script>
+
+</body>
+</html>
