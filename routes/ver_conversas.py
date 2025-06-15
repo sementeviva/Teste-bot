@@ -1,61 +1,69 @@
-from flask import Blueprint, render_template, request, flash
-# ATUALIZADO: Importe o RealDictCursor de psycopg2
+from flask import Blueprint, render_template, jsonify
+# ATENÇÃO: Adicionado o 'jsonify'
 from psycopg2.extras import RealDictCursor
-from utils.db_utils import get_db_connection
+from ..utils.db_utils import get_db_connection
 
-# Blueprint continua o mesmo
 ver_conversas_bp = Blueprint('ver_conversas_bp', __name__, template_folder='../templates')
 
-@ver_conversas_bp.route('/', methods=['GET', 'POST'])
-def ver_conversas():
+# --- ROTA PRINCIPAL ATUALIZADA ---
+@ver_conversas_bp.route('/', methods=['GET'])
+def listar_contatos():
     """
-    Exibe o histórico de conversas com filtros por contato e data.
-    Utiliza um RealDictCursor para buscar os dados como dicionários,
-    facilitando o acesso no template e tornando o código mais legível.
+    Busca uma lista resumida de contatos que já interagiram com o bot,
+    ordenados pela mensagem mais recente.
     """
     conn = None
-    conversas = []
-    # Pega os valores do formulário (funciona para GET e POST)
-    contato_filtro = request.values.get('contato', '').strip()
-    data_filtro = request.values.get('data', '').strip()
-
+    contatos_resumo = []
+    
+    # Query para agrupar por contato e pegar a última data e a contagem de mensagens
+    query = """
+        SELECT
+            contato,
+            COUNT(id) as total_mensagens,
+            MAX(data_hora) as ultima_mensagem
+        FROM conversas
+        GROUP BY contato
+        ORDER BY ultima_mensagem DESC;
+    """
+    
     try:
         conn = get_db_connection()
-        # ATUALIZADO: Use o cursor_factory para obter resultados como dicionários
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            # A query base seleciona todas as colunas necessárias
-            query = "SELECT id, contato, mensagem_usuario, resposta_bot, data_hora FROM conversas WHERE 1=1"
-            params = []
-
-            # Adiciona os filtros à query se eles foram preenchidos
-            if contato_filtro:
-                query += " AND contato ILIKE %s"
-                params.append(f"%{contato_filtro}%")
-            
-            if data_filtro:
-                query += " AND DATE(data_hora) = %s"
-                params.append(data_filtro)
-            
-            # Ordena da mais recente para a mais antiga
-            query += " ORDER BY data_hora DESC"
-
-            cur.execute(query, tuple(params))
-            conversas = cur.fetchall()
-
+            cur.execute(query)
+            contatos_resumo = cur.fetchall()
     except Exception as e:
-        # Em caso de erro, exibe uma mensagem para o administrador
-        flash(f"Ocorreu um erro ao buscar as conversas: {e}", "danger")
-        print(f"Erro ao buscar conversas: {e}") # Loga o erro no terminal também
-        
+        print(f"Erro ao buscar resumo de contatos: {e}")
+
     finally:
         if conn:
             conn.close()
+            
+    return render_template('ver_conversas_agrupado.html', contatos=contatos_resumo)
 
-    # Passa os resultados e os valores dos filtros para o template
-    return render_template(
-        'ver_conversas.html',
-        conversas=conversas,
-        contato_filtro=contato_filtro,
-        data_filtro=data_filtro
-    )
+
+# --- NOVA ROTA DE API ---
+@ver_conversas_bp.route('/api/conversas/<string:contato>', methods=['GET'])
+def get_historico_contato(contato):
+    """
+    API que retorna o histórico de chat completo para um contato específico.
+    """
+    conn = None
+    historico = []
+    
+    # Query para buscar todas as mensagens de um contato, em ordem cronológica
+    query = "SELECT * FROM conversas WHERE contato = %s ORDER BY data_hora ASC;"
+    
+    try:
+        conn = get_db_connection()
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(query, (contato,))
+            historico = cur.fetchall()
+    except Exception as e:
+        print(f"Erro ao buscar histórico do contato {contato}: {e}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+            
+    return jsonify(historico)
     
