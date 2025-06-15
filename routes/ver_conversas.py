@@ -1,19 +1,32 @@
 from flask import Blueprint, render_template, jsonify, request
 from psycopg2.extras import RealDictCursor
-# Adicionamos os imports que vamos precisar
-from utils.db_utils import get_db_connection, salvar_conversa
+from utils.db_utils import get_db_connection
 from utils.twilio_utils import send_whatsapp_message
+# Importamos a função de salvar para a resposta rápida
+from utils.db_utils import salvar_conversa
 
 ver_conversas_bp = Blueprint('ver_conversas_bp', __name__, template_folder='../templates')
 
-# As rotas existentes continuam as mesmas
+# --- ROTA PRINCIPAL ATUALIZADA ---
 @ver_conversas_bp.route('/', methods=['GET'])
 def listar_contatos():
+    """
+    Busca uma lista de contatos e agora também conta
+    quantas mensagens não lidas cada um tem.
+    """
     conn = None
     contatos_resumo = []
+    # ATUALIZADO: A query agora inclui um contador para 'nao_lidas'.
+    # Usamos SUM e CASE para contar 1 para cada mensagem com 'lido = FALSE'.
     query = """
-        SELECT contato, COUNT(id) as total_mensagens, MAX(data_hora) as ultima_mensagem
-        FROM conversas GROUP BY contato ORDER BY ultima_mensagem DESC;
+        SELECT
+            contato,
+            COUNT(id) as total_mensagens,
+            MAX(data_hora) as ultima_mensagem,
+            SUM(CASE WHEN lido = FALSE THEN 1 ELSE 0 END) as nao_lidas
+        FROM conversas
+        GROUP BY contato
+        ORDER BY ultima_mensagem DESC;
     """
     try:
         conn = get_db_connection()
@@ -26,17 +39,39 @@ def listar_contatos():
         if conn: conn.close()
     return render_template('ver_conversas_agrupado.html', contatos=contatos_resumo)
 
+
+# --- ROTA DA API ATUALIZADA ---
 @ver_conversas_bp.route('/api/conversas/<string:contato>', methods=['GET'])
 def get_historico_contato(contato):
+    """
+    Busca o histórico de um contato e, crucialmente, marca
+    todas as suas mensagens como lidas no processo.
+    """
     conn = get_db_connection()
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("SELECT * FROM conversas WHERE contato = %s ORDER BY data_hora ASC;", (contato,))
+            # ATUALIZADO: Primeiro, marcamos todas as mensagens deste contato como lidas.
+            cur.execute("UPDATE conversas SET lido = TRUE WHERE contato = %s AND lido = FALSE", (contato,))
+            
+            # Depois, buscamos o histórico completo como antes.
+            query = "SELECT * FROM conversas WHERE contato = %s ORDER BY data_hora ASC;"
+            cur.execute(query, (contato,))
             historico = cur.fetchall()
-        return jsonify(historico)
-    finally:
-        if conn: conn.close()
 
+            # Por fim, salvamos (commit) a alteração do status 'lido'.
+            conn.commit()
+            
+            return jsonify(historico)
+    except Exception as e:
+        print(f"Erro ao buscar histórico do contato {contato}: {e}")
+        # Se der erro, desfazemos qualquer alteração pendente
+        if conn: conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+# As rotas de modo_atendimento e responder continuam iguais
 @ver_conversas_bp.route('/api/modo_atendimento/<string:contato>', methods=['GET', 'POST'])
 def modo_atendimento(contato):
     conn = get_db_connection()
@@ -58,14 +93,8 @@ def modo_atendimento(contato):
     finally:
         if conn: conn.close()
 
-
-# --- INÍCIO DA NOVA ROTA PARA RESPOSTA RÁPIDA ---
 @ver_conversas_bp.route('/api/responder', methods=['POST'])
 def responder_cliente():
-    """
-    Recebe uma mensagem do painel, envia para o cliente via Twilio
-    e salva no banco como uma mensagem do atendente.
-    """
     data = request.get_json()
     contato = data.get('contato')
     mensagem = data.get('mensagem')
@@ -74,15 +103,10 @@ def responder_cliente():
         return jsonify({'error': 'Contato e mensagem são obrigatórios'}), 400
 
     try:
-        # Envia a mensagem para o cliente pelo WhatsApp
         send_whatsapp_message(to_number=contato, body=mensagem)
-
-        # Salva a mensagem do atendente no nosso banco de dados
-        # Usamos um prefixo para identificar que foi um humano que enviou
         resposta_formatada = f"[ATENDENTE]: {mensagem}"
         salvar_conversa(contato, "--- RESPOSTA MANUAL DO PAINEL ---", resposta_formatada)
         
-        # BÔNUS: Garante que a conversa continue em modo manual
         conn = get_db_connection()
         with conn.cursor() as cur:
             cur.execute("UPDATE vendas SET modo_atendimento = 'manual' WHERE cliente_id = %s AND status = 'aberto'", (contato,))
@@ -90,9 +114,7 @@ def responder_cliente():
         conn.close()
 
         return jsonify({'success': True})
-
     except Exception as e:
         print(f"--- ERRO ao enviar resposta rápida: {e} ---")
         return jsonify({'error': str(e)}), 500
-# --- FIM DA NOVA ROTA ---
 
