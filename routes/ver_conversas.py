@@ -1,21 +1,13 @@
-from flask import Blueprint, render_template, jsonify
-# ATENÇÃO: Adicionado o 'jsonify'
+from flask import Blueprint, render_template, jsonify, request # request foi adicionado
 from psycopg2.extras import RealDictCursor
 from utils.db_utils import get_db_connection
 
 ver_conversas_bp = Blueprint('ver_conversas_bp', __name__, template_folder='../templates')
 
-# --- ROTA PRINCIPAL ATUALIZADA ---
 @ver_conversas_bp.route('/', methods=['GET'])
 def listar_contatos():
-    """
-    Busca uma lista resumida de contatos que já interagiram com o bot,
-    ordenados pela mensagem mais recente.
-    """
     conn = None
     contatos_resumo = []
-    
-    # Query para agrupar por contato e pegar a última data e a contagem de mensagens
     query = """
         SELECT
             contato,
@@ -25,7 +17,6 @@ def listar_contatos():
         GROUP BY contato
         ORDER BY ultima_mensagem DESC;
     """
-    
     try:
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -33,26 +24,16 @@ def listar_contatos():
             contatos_resumo = cur.fetchall()
     except Exception as e:
         print(f"Erro ao buscar resumo de contatos: {e}")
-
     finally:
-        if conn:
-            conn.close()
-            
+        if conn: conn.close()
     return render_template('ver_conversas_agrupado.html', contatos=contatos_resumo)
 
 
-# --- NOVA ROTA DE API ---
 @ver_conversas_bp.route('/api/conversas/<string:contato>', methods=['GET'])
 def get_historico_contato(contato):
-    """
-    API que retorna o histórico de chat completo para um contato específico.
-    """
     conn = None
     historico = []
-    
-    # Query para buscar todas as mensagens de um contato, em ordem cronológica
     query = "SELECT * FROM conversas WHERE contato = %s ORDER BY data_hora ASC;"
-    
     try:
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -62,8 +43,44 @@ def get_historico_contato(contato):
         print(f"Erro ao buscar histórico do contato {contato}: {e}")
         return jsonify({'error': str(e)}), 500
     finally:
+        if conn: conn.close()
+    return jsonify(historico)
+
+
+# --- INÍCIO DA NOVA ROTA PARA MODO DE ATENDIMENTO ---
+@ver_conversas_bp.route('/api/modo_atendimento/<string:contato>', methods=['GET', 'POST'])
+def modo_atendimento(contato):
+    """
+    GET: Retorna o modo de atendimento atual para a conversa ativa do contato.
+    POST: Atualiza o modo de atendimento para 'bot' ou 'manual'.
+    """
+    conn = get_db_connection()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # Encontra a venda ativa (atendimento) para o cliente
+            cur.execute("SELECT id, modo_atendimento FROM vendas WHERE cliente_id = %s AND status = 'aberto' LIMIT 1", (contato,))
+            venda_ativa = cur.fetchone()
+
+            if not venda_ativa:
+                return jsonify({'modo': 'bot', 'message': 'Nenhuma conversa ativa encontrada.'}), 200
+
+            if request.method == 'POST':
+                # Atualiza o modo
+                novo_modo = request.json.get('modo')
+                if novo_modo not in ['bot', 'manual']:
+                    return jsonify({'error': 'Modo inválido'}), 400
+                
+                cur.execute("UPDATE vendas SET modo_atendimento = %s WHERE id = %s", (novo_modo, venda_ativa['id']))
+                conn.commit()
+                return jsonify({'success': True, 'novo_modo': novo_modo})
+
+            # Se for GET, apenas retorna o modo atual
+            return jsonify({'modo': venda_ativa['modo_atendimento']})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
         if conn:
             conn.close()
-            
-    return jsonify(historico)
-    
+# --- FIM DA NOVA ROTA ---
+
