@@ -2,7 +2,6 @@ import os
 import pandas as pd
 import psycopg2
 from flask import Flask, request, render_template, jsonify, Response
-# ATUALIZADO: Garanta que este import está presente
 from psycopg2.extras import RealDictCursor
 from openai import OpenAI
 from datetime import datetime
@@ -31,7 +30,7 @@ app.register_blueprint(gerenciar_vendas_bp, url_prefix='/gerenciar_vendas')
 openai_api_key = os.environ.get("OPENAI_API_KEY")
 client_openai = OpenAI(api_key=openai_api_key)
 
-# Funções de DB e OpenAI (sem alterações)
+# As funções auxiliares (carregar_produtos_db, etc.) não mudam
 def carregar_produtos_db():
     try:
         conn = get_db_connection()
@@ -99,45 +98,40 @@ def whatsapp_webhook():
     if not sender_number or not user_message:
         return "Dados insuficientes", 400
 
-    # --- INÍCIO DA LÓGICA "LIGA/DESLIGA" (REVISADA) ---
+    # Lógica "Liga/Desliga"
     conn = get_db_connection()
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            # DEBUG: Log para ver o número que estamos procurando
-            print(f"--- DEBUG: Verificando modo para o contato: '{sender_number}' ---")
-
-            cur.execute(
-                "SELECT modo_atendimento FROM vendas WHERE cliente_id = %s AND status = 'aberto' LIMIT 1",
-                (sender_number,)
-            )
+            cur.execute("SELECT id, modo_atendimento FROM vendas WHERE cliente_id = %s AND status = 'aberto' LIMIT 1", (sender_number,))
             venda_ativa = cur.fetchone()
-
-            if venda_ativa:
-                modo_atual = venda_ativa['modo_atendimento']
-                # DEBUG: Log para ver o que foi encontrado no banco
-                print(f"--- DEBUG: Encontrada conversa ativa. Modo: '{modo_atual}' ---")
-                
-                if modo_atual == 'manual':
-                    print(f"--- INFO: Modo manual confirmado para '{sender_number}'. Bot silenciado. ---")
-                    salvar_conversa(sender_number, user_message, "--- MENSAGEM RECEBIDA EM MODO MANUAL ---")
-                    conn.close() # Fechamos a conexão antes de sair
-                    return "OK", 200
-            else:
-                # DEBUG: Log para o caso de não encontrar conversa ativa
-                print(f"--- DEBUG: Nenhuma conversa ativa encontrada para '{sender_number}'. Modo padrão: 'bot'. ---")
+            if venda_ativa and venda_ativa['modo_atendimento'] == 'manual':
+                salvar_conversa(sender_number, user_message, "--- MENSAGEM RECEBIDA EM MODO MANUAL ---")
+                return "OK", 200
+            
+            # --- INÍCIO DA NOVA LÓGICA DE ALERTA ---
+            PALAVRAS_CHAVE_ALERTA = ['ajuda', 'atendente', 'humano', 'falar com alguem', 'problema', 'reclamação', 'cancelar']
+            if any(palavra in user_message_lower for palavra in PALAVRAS_CHAVE_ALERTA):
+                if venda_ativa:
+                    # Se já existe um atendimento, marca-o como requerendo atenção.
+                    cur.execute("UPDATE vendas SET status_atendimento = 'requer_atencao' WHERE id = %s", (venda_ativa['id'],))
+                    conn.commit()
+                    print(f"--- ALERTA: Contato {sender_number} marcou a conversa como 'requer_atencao'.")
+                else:
+                    # Se não existe, cria um já com o alerta.
+                    cur.execute("INSERT INTO vendas (cliente_id, status, modo_atendimento, status_atendimento) VALUES (%s, 'aberto', 'bot', 'requer_atencao')", (sender_number,))
+                    conn.commit()
+                    print(f"--- ALERTA: Contato {sender_number} criou uma nova conversa com 'requer_atencao'.")
+            # --- FIM DA NOVA LÓGICA DE ALERTA ---
     
     except Exception as e:
-        print(f"--- ERRO: Falha ao verificar modo de atendimento: {e} ---")
+        print(f"--- ERRO: Falha ao verificar modo/status: {e} ---")
     finally:
         if conn:
             conn.close()
-    # --- FIM DA LÓGICA ---
-
-    # Se o código chegou aqui, o modo é 'bot'. A lógica original continua.
-    print(f"--- INFO: '{sender_number}' em modo bot. Processando mensagem... ---")
     
+    # Lógica do Bot para gerar resposta
     resposta_final = ""
-
+    # ... (o resto da lógica if/elif/else para responder o cliente continua exatamente a mesma)
     if user_message_lower in ["oi", "olá", "ola", "oi tudo bem", "menu", "começar", "iniciar"]:
         resposta_final = ("Olá! Bem-vindo(a) à Semente Viva! 🌱\n\n"
                           "Comandos úteis:\n"
@@ -168,14 +162,21 @@ def whatsapp_webhook():
         else:
             resposta_final = get_gpt_response(user_message)
 
+    # Lógica de envio e salvamento
     if resposta_final:
-        send_whatsapp_message(to_number=sender_number, body=resposta_final)
         salvar_conversa(sender_number, user_message, resposta_final)
+        try:
+            send_whatsapp_message(to_number=sender_number, body=resposta_final)
+        except Exception as e:
+            print(f"--- AVISO: Falha ao enviar mensagem via Twilio: {e} ---")
     else:
         fallback_message = "Desculpe, não entendi. Digite 'menu' para ver as opções."
-        send_whatsapp_message(to_number=sender_number, body=fallback_message)
         salvar_conversa(sender_number, user_message, "Erro: Sem resposta gerada.")
-
+        try:
+            send_whatsapp_message(to_number=sender_number, body=fallback_message)
+        except Exception as e:
+            print(f"--- AVISO: Falha ao enviar mensagem de fallback via Twilio: {e} ---")
+    
     return "OK", 200
 
 @app.route("/")
@@ -185,3 +186,4 @@ def home():
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
 
+                                
