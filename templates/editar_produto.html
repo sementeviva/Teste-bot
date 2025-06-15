@@ -10,87 +10,93 @@
             Editar Produto: {{ produto.nome }}
         {% endif %}
     </title>
-    <!-- Inclua Bootstrap CSS aqui -->
+    <!-- Tailwind CSS para layout e estilização -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Bootstrap CSS para componentes como Alertas -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body {
-            padding: 20px;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        textarea {
-            resize: vertical; /* Permite redimensionar a altura da textarea */
-        }
-    </style>
+    <!-- Font Awesome para ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
-<body>
-    <div class="container">
-        <h2>
-            {% if produto.id == 0 %}
-                Adicionar Novo Produto
-            {% else %}
-                Editar Produto
-            {% endif %}
-        </h2>
-
-        <!-- Exibição de mensagens flash (sucesso/erro) -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="row">
-                    <div class="col-12">
-                        {% for category, message in messages %}
-                            <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
-                                {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            {% endif %}
-        {% endwith %}
-
-        <form method="post">
-            <div class="form-group">
-                <label for="nome">Nome:</label>
-                <input type="text" class="form-control" id="nome" name="nome" value="{{ produto.nome }}" required>
+<body class="bg-gray-100 p-4 md:p-8">
+    <div class="container mx-auto max-w-2xl">
+        <div class="bg-white p-6 md:p-8 rounded-lg shadow-lg">
+            
+            <!-- Título Dinâmico -->
+            <div class="flex items-center gap-4 mb-4">
+                <a href="{{ url_for('ver_produtos_bp.ver_produtos') }}" class="text-blue-600 hover:text-blue-800" title="Voltar para a lista de produtos">
+                    <i class="fas fa-arrow-left fa-lg"></i>
+                </a>
+                <h1 class="text-2xl md:text-3xl font-bold text-gray-800">
+                    {% if produto.id == 0 %}
+                        Adicionar Novo Produto
+                    {% else %}
+                        Editar Produto #{{ produto.id }}
+                    {% endif %}
+                </h1>
             </div>
 
-            <div class="form-group">
-                <label for="preco">Preço:</label>
-                <input type="number" class="form-control" id="preco" name="preco" value="{{ "%.2f"|format(produto.preco) }}" step="0.01" required>
-            </div>
-
-            <div class="form-group">
-                <label for="categoria">Categoria:</label>
-                <select class="form-select" id="categoria" name="categoria" required>
-                    <option value="">Selecione uma Categoria</option> {# Opção para novo produto #}
-                    {% for cat in categorias %}
-                        <option value="{{ cat }}" {% if cat == produto.categoria %}selected{% endif %}>{{ cat }}</option>
+            <!-- Exibição de Mensagens Flash -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
                     {% endfor %}
-                </select>
-                <!-- Opcional: Se quiser permitir novas categorias que não estão na lista -->
-                <!-- <div class="form-text">Se sua categoria não está na lista, digite abaixo:</div>
-                <input type="text" class="form-control mt-1" name="nova_categoria" placeholder="Nova Categoria (opcional)"> -->
-            </div>
+                {% endif %}
+            {% endwith %}
 
-            <div class="form-group">
-                <label for="descricao">Descrição:</label>
-                <textarea class="form-control" id="descricao" name="descricao" rows="3">{{ produto.descricao }}</textarea>
-            </div>
+            <!-- Formulário -->
+            <form method="post" class="space-y-6">
+                <!-- Nome do Produto -->
+                <div>
+                    <label for="nome" class="block text-sm font-medium text-gray-700">Nome do Produto</label>
+                    <input type="text" id="nome" name="nome" value="{{ produto.nome }}" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
 
-            <div class="form-group form-check">
-                <input type="checkbox" class="form-check-input" id="ativo" name="ativo" {% if produto.ativo %}checked{% endif %}>
-                <label class="form-check-label" for="ativo">Ativo</label>
-            </div>
+                <!-- Preço -->
+                <div>
+                    <label for="preco" class="block text-sm font-medium text-gray-700">Preço (R$)</label>
+                    <input type="number" id="preco" name="preco" value="{{ produto.preco }}" step="0.01" required placeholder="Ex: 19.99" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
 
-            <button type="submit" class="btn btn-primary mt-3">Salvar</button>
-        </form>
+                <!-- Categoria -->
+                <div>
+                    <label for="categoria" class="block text-sm font-medium text-gray-700">Categoria</label>
+                    <select id="categoria" name="categoria" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="" disabled {% if not produto.categoria %}selected{% endif %}>Selecione uma categoria</option>
+                        {% for cat in categorias %}
+                            <option value="{{ cat }}" {% if cat == produto.categoria %}selected{% endif %}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-        <a href="{{ url_for('ver_produtos_bp.ver_produtos') }}" class="btn btn-secondary mt-3">Voltar para Produtos</a>
+                <!-- Descrição -->
+                <div>
+                    <label for="descricao" class="block text-sm font-medium text-gray-700">Descrição</label>
+                    <textarea id="descricao" name="descricao" rows="4" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">{{ produto.descricao or '' }}</textarea>
+                </div>
+
+                <!-- Checkbox 'Ativo' -->
+                <div class="flex items-center">
+                    <input type="checkbox" id="ativo" name="ativo" {% if produto.ativo %}checked{% endif %} class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                    <label for="ativo" class="ml-2 block text-sm text-gray-900">Produto Ativo (visível para clientes)</label>
+                </div>
+
+                <!-- Botão de Salvar -->
+                <div class="pt-4">
+                    <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        <i class="fas fa-save mr-2"></i>
+                        Salvar Produto
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 
-    <!-- Inclua Bootstrap JS aqui (bundle inclui Popper) -->
+    <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+
