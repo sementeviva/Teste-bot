@@ -1,53 +1,61 @@
-from flask import Blueprint, render_template, request, flash, current_app
-# Importa a função de conexão do banco de dados centralizada
-from utils.db_utils import get_db_connection
-import psycopg2 # Importa psycopg2 para lidar com erros específicos ou tipos de dados como Binary se necessário.
+from flask import Blueprint, render_template, request, flash
+# ATUALIZADO: Importe o RealDictCursor de psycopg2
+from psycopg2.extras import RealDictCursor
+from ..utils.db_utils import get_db_connection
 
-# Definindo o Blueprint com o nome 'ver_conversas_bp'
-# O 'template_folder' aponta para onde os templates HTML associados a este Blueprint estão.
+# Blueprint continua o mesmo
 ver_conversas_bp = Blueprint('ver_conversas_bp', __name__, template_folder='../templates')
 
-# Rota para visualizar as conversas
-# A rota será acessada como /ver_conversas/ se o Blueprint for registrado com url_prefix='/ver_conversas'
 @ver_conversas_bp.route('/', methods=['GET', 'POST'])
 def ver_conversas():
-    conn = None # Inicializa conn para garantir que esteja definida
+    """
+    Exibe o histórico de conversas com filtros por contato e data.
+    Utiliza um RealDictCursor para buscar os dados como dicionários,
+    facilitando o acesso no template e tornando o código mais legível.
+    """
+    conn = None
     conversas = []
-    contato_filtro = request.form.get('contato', '') # Pega o valor do filtro de contato do formulário
-    data_filtro = request.form.get('data', '')     # Pega o valor do filtro de data do formulário
+    # Pega os valores do formulário (funciona para GET e POST)
+    contato_filtro = request.values.get('contato', '').strip()
+    data_filtro = request.values.get('data', '').strip()
 
     try:
         conn = get_db_connection()
-        with conn.cursor() as cur:
-            query = "SELECT id, contato, mensagem, data_hora FROM conversas WHERE 1=1"
+        # ATUALIZADO: Use o cursor_factory para obter resultados como dicionários
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # A query base seleciona todas as colunas necessárias
+            query = "SELECT id, contato, mensagem_usuario, resposta_bot, data_hora FROM conversas WHERE 1=1"
             params = []
 
+            # Adiciona os filtros à query se eles foram preenchidos
             if contato_filtro:
-                query += " AND contato ILIKE %s" # ILIKE para busca case-insensitive no PostgreSQL
+                query += " AND contato ILIKE %s"
                 params.append(f"%{contato_filtro}%")
-
+            
             if data_filtro:
-                # DATE(data_hora) para comparar apenas a parte da data
                 query += " AND DATE(data_hora) = %s"
                 params.append(data_filtro)
             
-            query += " ORDER BY data_hora DESC" # Ordena as conversas pelas mais recentes primeiro
+            # Ordena da mais recente para a mais antiga
+            query += " ORDER BY data_hora DESC"
 
-            cur.execute(query, params)
-            # Para facilitar o acesso no template, pode ser útil buscar como dicionário (opcional)
-            # Se seu cursor não retornar dicionários por padrão, pode precisar de `cursor_factory=psycopg2.extras.DictCursor`
-            # ao criar o cursor, ou converter manualmente as tuplas em dicionários.
+            cur.execute(query, tuple(params))
             conversas = cur.fetchall()
 
     except Exception as e:
-        flash(f"Erro ao buscar conversas: {e}", "danger")
-        current_app.logger.exception("Erro ao buscar conversas no ver_conversas_bp")
+        # Em caso de erro, exibe uma mensagem para o administrador
+        flash(f"Ocorreu um erro ao buscar as conversas: {e}", "danger")
+        print(f"Erro ao buscar conversas: {e}") # Loga o erro no terminal também
+        
     finally:
-        if conn: # Fecha a conexão se ela foi aberta
+        if conn:
             conn.close()
 
-    # Passa os dados e os valores dos filtros para o template
-    return render_template('ver_conversas.html', 
-                           conversas=conversas, 
-                           contato=contato_filtro, 
-                           data=data_filtro)
+    # Passa os resultados e os valores dos filtros para o template
+    return render_template(
+        'ver_conversas.html',
+        conversas=conversas,
+        contato_filtro=contato_filtro,
+        data_filtro=data_filtro
+    )
+    
