@@ -2,50 +2,71 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel | Semente Viva</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Tailwind CSS para estilização principal -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome para ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
-<body class="bg-light">
-    <div class="container py-5">
-        <div class="text-center mb-5">
-            <h1 class="text-success">Painel Administrativo - Semente Viva</h1>
-            <p class="lead">Gerencie seus produtos e conversas com facilidade</p>
+<body class="bg-gray-100">
+
+    <div class="container mx-auto px-4 py-8 md:py-12">
+        <!-- Cabeçalho -->
+        <div class="text-center mb-10">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-800">
+                Painel Semente Viva
+            </h1>
+            <p class="text-lg text-gray-600 mt-2">Gerencie sua loja e suas operações com facilidade.</p>
         </div>
 
-        <div class="row justify-content-center">
-            <div class="col-md-4">
-                {# Anterior: {{ url_for('upload_csv.upload_csv') }} #}
-                <a href="{{ url_for('upload_csv_bp.upload_csv') }}" class="btn btn-outline-success w-100 mb-3">
-                    <i class="bi bi-upload me-2"></i> Fazer upload de CSV
-                </a>
-            </div>
-            <div class="col-md-4">
-                {# Anterior: {{ url_for('ver_produtos.ver_produtos') }} #}
-                <a href="{{ url_for('ver_produtos_bp.ver_produtos') }}" class="btn btn-outline-success w-100 mb-3">
-                    <i class="bi bi-box-seam me-2"></i> Ver produtos cadastrados
-                </a>
-            </div>
-            <div class="col-md-4">
-                {# Anterior: {{ url_for('ver_conversas') }} #}
-                {# Assumindo que também há um Blueprint 'ver_conversas_bp' #}
-                <a href="{{ url_for('ver_conversas_bp.ver_conversas') }}" class="btn btn-outline-success w-100 mb-3">
-                    <i class="bi bi-chat-dots me-2"></i> Visualizar histórico de conversas
-                </a>
-            </div>
-            {# NOVO: Botão para Gerenciar Vendas #}
-            <div class="col-md-4">
-                <a href="{{ url_for('gerenciar_vendas_bp.gerenciar_vendas') }}" class="btn btn-outline-success w-100 mb-3">
-                    <i class="bi bi-cart-check me-2"></i> Gerenciar Vendas
-                </a>
-            </div>
+        <!-- Grade de Navegação com Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+            <!-- Card: Gerenciar Produtos -->
+            <a href="{{ url_for('ver_produtos_bp.ver_produtos') }}" class="block p-6 bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
+                <div class="flex items-center justify-center h-12 w-12 rounded-full bg-green-100 text-green-600 mb-4">
+                    <i class="fas fa-box-open fa-lg"></i>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900">Gerenciar Produtos</h3>
+                <p class="mt-2 text-gray-600">Visualize, edite, adicione e remova produtos do seu catálogo.</p>
+            </a>
+
+            <!-- Card: Gerenciar Vendas -->
+            <a href="{{ url_for('gerenciar_vendas_bp.gerenciar_vendas') }}" class="block p-6 bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
+                <div class="flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 text-blue-600 mb-4">
+                    <i class="fas fa-shopping-cart fa-lg"></i>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900">Gerenciar Vendas</h3>
+                <p class="mt-2 text-gray-600">Acompanhe os pedidos finalizados e os detalhes de cada venda.</p>
+            </a>
+
+            <!-- Card: Histórico de Conversas -->
+            <a href="{{ url_for('ver_conversas_bp.ver_conversas') }}" class="block p-6 bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
+                <div class="flex items-center justify-center h-12 w-12 rounded-full bg-purple-100 text-purple-600 mb-4">
+                    <i class="fas fa-comments fa-lg"></i>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900">Ver Conversas</h3>
+                <p class="mt-2 text-gray-600">Analise o histórico de interações do chatbot com os clientes.</p>
+            </a>
+
+            <!-- Card: Upload de CSV -->
+            <a href="{{ url_for('upload_csv_bp.upload_csv') }}" class="block p-6 bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
+                <div class="flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 text-yellow-600 mb-4">
+                    <i class="fas fa-file-upload fa-lg"></i>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900">Upload de CSV</h3>
+                <p class="mt-2 text-gray-600">Adicione produtos em massa ao seu catálogo enviando um arquivo.</p>
+            </a>
+
         </div>
     </div>
 
-    <footer class="text-center mt-5 text-muted">
-        <small>Semente Viva © 2025</small>
+    <!-- Rodapé -->
+    <footer class="text-center py-6 mt-8 text-gray-500">
+        <small>Semente Viva &copy; 2025</small>
     </footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+
