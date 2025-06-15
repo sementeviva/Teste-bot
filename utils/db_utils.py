@@ -2,20 +2,26 @@ import psycopg2
 import os
 from datetime import datetime
 
-# Função para conectar ao banco de dados (Renomeada para 'get_db_connection' e variáveis de ambiente padronizadas)
 def get_db_connection():
+    """
+    Estabelece e retorna uma conexão com o banco de dados PostgreSQL
+    usando as variáveis de ambiente para as credenciais.
+    """
     return psycopg2.connect(
-        host=os.environ.get('DB_HOST'),      # Padronizado para DB_HOST
-        database=os.environ.get('DB_NAME'),  # Padronizado para DB_NAME
-        user=os.environ.get('DB_USER'),      # Padronizado para DB_USER
-        password=os.environ.get('DB_PASSWORD'), # Padronizado para DB_PASSWORD
-        port=os.environ.get('DB_PORT', 5432) # Padronizado para DB_PORT
+        host=os.environ.get('DB_HOST'),
+        database=os.environ.get('DB_NAME'),
+        user=os.environ.get('DB_USER'),
+        password=os.environ.get('DB_PASSWORD'),
+        port=os.environ.get('DB_PORT', 5432)
     )
 
-# Função para salvar conversas no banco de dados (Adaptada para a lógica do app.py)
 def salvar_conversa(contato, mensagem_usuario, resposta_bot):
+    """
+    Salva um registro da interação (mensagem do usuário e resposta do bot)
+    na tabela 'conversas' do banco de dados.
+    """
     try:
-        conn = get_db_connection() # Usando a função de conexão renomeada
+        conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -29,3 +35,32 @@ def salvar_conversa(contato, mensagem_usuario, resposta_bot):
         conn.close()
     except Exception as e:
         print(f"Erro ao salvar conversa: {e}")
+
+def get_last_bot_message(contato):
+    """
+    Busca a última mensagem enviada pelo bot para um contato específico.
+    Isso ajuda a dar contexto para a próxima interação.
+    """
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT resposta_bot FROM conversas
+            WHERE contato = %s
+            ORDER BY data_hora DESC
+            LIMIT 1
+            """,
+            (contato,)
+        )
+        result = cur.fetchone()
+        # Retorna a mensagem se encontrar, caso contrário retorna None
+        return result[0] if result else None
+    except Exception as e:
+        print(f"Erro ao buscar a última mensagem do bot: {e}")
+        return None
+    finally:
+        if conn:
+            conn.close()
+
