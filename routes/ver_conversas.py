@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, jsonify
 # ATENÇÃO: Adicionado o 'jsonify'
 from psycopg2.extras import RealDictCursor
-from ..utils.db_utils import get_db_connection
+from utils.db_utils import get_db_connection
 
 ver_conversas_bp = Blueprint('ver_conversas_bp', __name__, template_folder='../templates')
 
