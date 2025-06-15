@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, flash
 # ATUALIZADO: Importe o RealDictCursor de psycopg2
 from psycopg2.extras import RealDictCursor
-from ..utils.db_utils import get_db_connection
+from utils.db_utils import get_db_connection
 
 # Blueprint continua o mesmo
 ver_conversas_bp = Blueprint('ver_conversas_bp', __name__, template_folder='../templates')
