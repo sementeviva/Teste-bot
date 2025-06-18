@@ -3,46 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registo | Plataforma Semente Viva</title>
+    <title>Registo de Nova Conta | Plataforma Semente Viva</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen py-12">
     <div class="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
         <div class="text-center">
-            <h1 class="text-3xl font-bold text-gray-900">Crie a Sua Conta</h1>
-            <p class="mt-2 text-gray-600">Comece a transformar o seu atendimento hoje mesmo.</p>
+            <h1 class="text-3xl font-bold text-gray-900">Registar Nova Loja</h1>
+            <p class="mt-2 text-gray-600">Preencha os dados abaixo para criar uma nova conta.</p>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="p-4 rounded-md text-sm {{ 'bg-yellow-100 text-yellow-700' if category == 'warning' else 'bg-red-100 text-red-700' }}" role="alert">
+                    <div class="p-4 rounded-md text-sm {{ 'bg-red-100 text-red-700' if category == 'danger' else 'bg-yellow-100 text-yellow-700' }}" role="alert">
                         {{ message }}
                     </div>
                 {% endfor %}
             {% endif %}
         {% endwith %}
 
-        <form class="space-y-6" action="{{ url_for('auth.registo') }}" method="POST">
+        <form class="space-y-6" action="{{ url_for('auth.registo', token=token) }}" method="POST">
             <div>
-                <label for="nome_empresa" class="text-sm font-medium text-gray-700">Nome da Sua Empresa</label>
+                <label for="nome_empresa" class="text-sm font-medium text-gray-700">Nome da Empresa</label>
                 <input id="nome_empresa" name="nome_empresa" type="text" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
             </div>
 
             <div>
-                <label for="nome" class="text-sm font-medium text-gray-700">Seu Nome</label>
+                <label for="nome" class="text-sm font-medium text-gray-700">Nome do Responsável</label>
                 <input id="nome" name="nome" type="text" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
             </div>
             
             <div>
-                <label for="email" class="text-sm font-medium text-gray-700">Seu Melhor Email</label>
+                <label for="email" class="text-sm font-medium text-gray-700">Email de Acesso</label>
                 <input id="email" name="email" type="email" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
             </div>
 
             <div>
-                <label for="password" class="text-sm font-medium text-gray-700">Crie uma Senha</label>
+                <label for="password" class="text-sm font-medium text-gray-700">Criar uma Senha</label>
                 <input id="password" name="password" type="password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+            </div>
+
+            <!-- NOVO CAMPO DE CONFIRMAÇÃO DE SENHA -->
+            <div>
+                <label for="password_confirm" class="text-sm font-medium text-gray-700">Confirme a Senha</label>
+                <input id="password_confirm" name="password_confirm" type="password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
             </div>
 
             <div>
@@ -53,8 +58,8 @@
         </form>
 
         <p class="text-sm text-center text-gray-600">
-            Já tem uma conta?
-            <a href="{{ url_for('auth.login') }}" class="font-medium text-indigo-600 hover:text-indigo-500">Faça login</a>
+            Acesso restrito.
+            <a href="{{ url_for('auth.login') }}" class="font-medium text-indigo-600 hover:text-indigo-500">Voltar para Login</a>
         </p>
     </div>
 </body>
