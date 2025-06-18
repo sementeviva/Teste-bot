@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inteligência do Assistente</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        /* Estilo para a guia ativa */
+        .tab-button.active {
+            border-color: #4f46e5; /* indigo-600 */
+            color: #4f46e5;
+            background-color: #eef2ff; /* indigo-50 */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 md:p-8">
+    <div class="container mx-auto max-w-4xl">
+        <div class="flex items-center gap-4 mb-6">
+            <a href="{{ url_for('home') }}" class="text-blue-600 hover:text-blue-800" title="Voltar para o Painel"><i class="fas fa-arrow-left fa-lg"></i></a>
+            <h1 class="text-3xl font-bold text-gray-800">Inteligência do Assistente</h1>
+        </div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="p-4 mb-4 rounded-md text-sm {{ 'bg-green-100 text-green-700' if category == 'success' else 'bg-red-100 text-red-700' }}" role="alert">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="bg-white rounded-lg shadow-md">
+            <!-- Navegação por Guias -->
+            <div class="border-b border-gray-200">
+                <nav class="-mb-px flex space-x-4 px-6" aria-label="Tabs">
+                    <button class="tab-button active" onclick="changeTab('config')">🚀 Configuração Rápida</button>
+                    <button class="tab-button" onclick="changeTab('personalidade')">🎨 Personalidade</button>
+                    <button class="tab-button" onclick="changeTab('conhecimento')">📚 Base de Conhecimento</button>
+                    <button class="tab-button" onclick="changeTab('diretrizes')">🧠 Diretrizes da IA</button>
+                    <button class="tab-button" onclick="changeTab('guia')">💡 Guia de Ajuda</button>
+                </nav>
+            </div>
+
+            <form action="{{ url_for('treinamento_bot_bp.treinamento') }}" method="POST">
+                <div class="p-6">
+                    <!-- Conteúdo das Guias -->
+                    <div id="config" class="tab-content space-y-4">
+                        <h3 class="text-lg font-medium">Informações Essenciais</h3>
+                        <div>
+                            <label for="nome_loja_publico" class="block text-sm font-medium text-gray-700">Nome da Loja</label>
+                            <input type="text" name="nome_loja_publico" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" value="{{ configuracoes.nome_loja_publico or '' }}">
+                        </div>
+                        <div>
+                            <label for="horario_funcionamento" class="block text-sm font-medium text-gray-700">Horário de Funcionamento</label>
+                            <textarea name="horario_funcionamento" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">{{ configuracoes.horario_funcionamento or '' }}</textarea>
+                        </div>
+                        <!-- Adicionar outros campos: endereco, link_google_maps -->
+                    </div>
+
+                    <div id="personalidade" class="tab-content hidden space-y-4">
+                        <h3 class="text-lg font-medium">Personalidade e Voz</h3>
+                        <div>
+                            <label for="nome_assistente" class="block text-sm font-medium text-gray-700">Nome do Assistente</label>
+                            <input type="text" name="nome_assistente" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" value="{{ configuracoes.nome_assistente or 'Assistente Virtual' }}">
+                        </div>
+                        <div>
+                             <label for="saudacao_personalizada" class="block text-sm font-medium text-gray-700">Mensagem de Saudação</label>
+                            <textarea name="saudacao_personalizada" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">{{ configuracoes.saudacao_personalizada or '' }}</textarea>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" name="usar_emojis" class="h-4 w-4 rounded border-gray-300 text-indigo-600" {% if configuracoes.usar_emojis %}checked{% endif %}>
+                            <label for="usar_emojis" class="ml-2 block text-sm text-gray-900">Usar emojis nas respostas</label>
+                        </div>
+                    </div>
+
+                    <div id="conhecimento" class="tab-content hidden space-y-4">
+                        <h3 class="text-lg font-medium">Base de Conhecimento</h3>
+                        <p class="text-sm text-gray-500">Adicione aqui perguntas e respostas exatas que o bot deve saber. Use o formato JSON.</p>
+                        <textarea name="faq_conhecimento" rows="10" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm font-mono text-sm">{{ configuracoes.faq_conhecimento or '{\n  "Qual o vosso pix?": "O nosso pix é o email contato@loja.com",\n  "Fazem entregas?": "Sim, fazemos entregas para toda a cidade com uma taxa de R$ 10,00."\n}' }}</textarea>
+                        <p class="text-xs text-gray-500 mt-1">Futuramente, aqui poderá adicionar ficheiros .PDF diretamente.</p>
+                    </div>
+
+                    <div id="diretrizes" class="tab-content hidden space-y-4">
+                         <h3 class="text-lg font-medium">Diretrizes da IA (Avançado)</h3>
+                        <div>
+                            <label for="conhecimento_especifico" class="block text-sm font-medium text-gray-700">Factos e Curiosidades Sobre a Sua Loja</p>
+                            <textarea name="conhecimento_especifico" rows="5" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">{{ configuracoes.conhecimento_especifico or '' }}</textarea>
+                        </div>
+                        <div>
+                            <label for="diretriz_principal_prompt" class="block text-sm font-medium text-gray-700">Diretriz Principal (System Prompt)</label>
+                            <textarea name="diretriz_principal_prompt" rows="8" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">{{ configuracoes.diretriz_principal_prompt or '' }}</textarea>
+                        </div>
+                    </div>
+
+                    <div id="guia" class="tab-content hidden prose">
+                        <h3 class="text-lg font-medium">💡 Guia Rápido de Treinamento</h3>
+                        <p>Use esta secção como inspiração para preencher as outras guias e tornar o seu assistente mais inteligente!</p>
+                        <h4>Para a "Base de Conhecimento" (FAQ):</h4>
+                        <ul>
+                            <li>Quais são as 5 perguntas que você mais responde todos os dias?</li>
+                            <li>Quais as suas formas de pagamento? Aceita cartão?</li>
+                            <li>Qual é a sua política de trocas ou devoluções?</li>
+                        </ul>
+                        <h4>Para as "Diretrizes da IA":</h4>
+                        <ul>
+                            <li>Qual é o produto que você mais quer vender? Diga à IA para o sugerir quando um cliente parecer indeciso.</li>
+                            <li>Qual é o maior diferencial da sua loja? Adicione-o aos "Factos e Curiosidades".</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 px-6 py-3 text-right">
+                    <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                        Salvar Alterações
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const tabs = document.querySelectorAll('.tab-content');
+        const tabButtons = document.querySelectorAll('.tab-button');
+
+        function changeTab(tabId) {
+            tabs.forEach(tab => {
+                if (tab.id === tabId) {
+                    tab.classList.remove('hidden');
+                } else {
+                    tab.classList.add('hidden');
+                }
+            });
+            tabButtons.forEach(button => {
+                if (button.getAttribute('onclick').includes(`'${tabId}'`)) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            });
+        }
+        // Estilo inicial para os botões das guias
+        tabButtons.forEach(button => {
+            button.classList.add('py-4', 'px-1', 'border-b-2', 'border-transparent', 'text-sm', 'font-medium', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+        });
+    </script>
+</body>
+</html>
+
+  
