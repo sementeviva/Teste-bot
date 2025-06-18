@@ -17,8 +17,19 @@
             <p class="text-lg text-gray-600 mt-2">Gerencie sua loja e suas operações com facilidade.</p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- ATUALIZADO: A grade agora pode ter até 5 colunas em telas grandes -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
 
+            <!-- NOVO CARD: Inteligência do Assistente -->
+            <a href="{{ url_for('treinamento_bot_bp.treinamento') }}" class="block p-6 bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
+                <div class="flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 text-indigo-600 mb-4">
+                    <i class="fas fa-brain fa-lg"></i>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900">Inteligência do Bot</h3>
+                <p class="mt-2 text-gray-600">Treine e personalize a personalidade e o conhecimento do seu assistente virtual.</p>
+            </a>
+
+            <!-- Card: Gerenciar Produtos -->
             <a href="{{ url_for('ver_produtos_bp.ver_produtos') }}" class="block p-6 bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
                 <div class="flex items-center justify-center h-12 w-12 rounded-full bg-green-100 text-green-600 mb-4">
                     <i class="fas fa-box-open fa-lg"></i>
@@ -27,6 +38,7 @@
                 <p class="mt-2 text-gray-600">Visualize, edite, adicione e remova produtos do seu catálogo.</p>
             </a>
 
+            <!-- Card: Gerenciar Vendas -->
             <a href="{{ url_for('gerenciar_vendas_bp.gerenciar_vendas') }}" class="block p-6 bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
                 <div class="flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 text-blue-600 mb-4">
                     <i class="fas fa-shopping-cart fa-lg"></i>
@@ -35,6 +47,7 @@
                 <p class="mt-2 text-gray-600">Acompanhe os pedidos finalizados e os detalhes de cada venda.</p>
             </a>
 
+            <!-- Card: Histórico de Conversas -->
             <a href="{{ url_for('ver_conversas_bp.listar_contatos') }}" class="block p-6 bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
                 <div class="flex items-center justify-center h-12 w-12 rounded-full bg-purple-100 text-purple-600 mb-4">
                     <i class="fas fa-comments fa-lg"></i>
@@ -43,6 +56,7 @@
                 <p class="mt-2 text-gray-600">Analise o histórico de interações do chatbot com os clientes.</p>
             </a>
 
+            <!-- Card: Upload de CSV -->
             <a href="{{ url_for('upload_csv_bp.upload_csv') }}" class="block p-6 bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
                 <div class="flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 text-yellow-600 mb-4">
                     <i class="fas fa-file-upload fa-lg"></i>
@@ -60,3 +74,4 @@
 
 </body>
 </html>
+
