@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Cliente | Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+</head>
+<body class="bg-gray-100 p-4 md:p-8">
+    <div class="container mx-auto max-w-2xl bg-white p-6 md:p-8 rounded-lg shadow-md">
+
+        <div class="flex items-center gap-4 mb-6">
+            {# Link de volta para a lista de clientes #}
+            <a href="{{ url_for('admin_bp.ver_clientes') }}" class="text-blue-600 hover:text-blue-800" title="Voltar para Clientes"><i class="fas fa-arrow-left fa-lg"></i></a>
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Editar Cliente (Conta ID: {{ cliente.id if cliente else 'N/A' }})</h1>
+        </div>
+
+        {# Exibição de Mensagens Flash #}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="p-4 mb-4 rounded-md text-sm {{ 'bg-green-100 text-green-700' if category == 'success' else 'bg-red-100 text-red-700' if category == 'danger' else 'bg-yellow-100 text-yellow-700' }}" role="alert">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% if cliente %}
+            <form method="POST" class="space-y-6">
+                {# Campo oculto para enviar o ID da conta #}
+                <input type="hidden" name="conta_id" value="{{ cliente.id }}">
+
+                <h2 class="text-xl font-semibold text-gray-700 pt-4 border-t">Dados da Conta</h2>
+
+                {# Nome da Empresa #}
+                <div>
+                    <label for="nome_empresa" class="block text-sm font-medium text-gray-700">Nome da Empresa</label>
+                    <input type="text" id="nome_empresa" name="nome_empresa" value="{{ cliente.nome_empresa }}" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                </div>
+
+                {# Plano Assinado #}
+                <div>
+                    <label for="plano_assinado" class="block text-sm font-medium text-gray-700">Plano Assinado</label>
+                    <input type="text" id="plano_assinado" name="plano_assinado" value="{{ cliente.plano_assinado }}" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                </div>
+
+                {# Créditos Disponíveis #}
+                <div>
+                    <label for="creditos_disponiveis" class="block text-sm font-medium text-gray-700">Créditos Disponíveis</label>
+                    <input type="number" id="creditos_disponiveis" name="creditos_disponiveis" value="{{ cliente.creditos_disponiveis }}" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                </div>
+
+                {# Twilio Subaccount SID #}
+                 <div>
+                    <label for="twilio_subaccount_sid" class="block text-sm font-medium text-gray-700">Twilio Subaccount SID</label>
+                    <input type="text" id="twilio_subaccount_sid" name="twilio_subaccount_sid" value="{{ cliente.twilio_subaccount_sid or '' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                </div>
+
+                {# Twilio Auth Token #}
+                 <div>
+                    <label for="twilio_auth_token" class="block text-sm font-medium text-gray-700">Twilio Auth Token</label>
+                    <input type="text" id="twilio_auth_token" name="twilio_auth_token" value="{{ cliente.twilio_auth_token or '' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                </div>
+
+
+                <h2 class="text-xl font-semibold text-gray-700 pt-6 border-t">Dados do Utilizador Principal</h2>
+
+                {% if utilizador %}
+                    {# Campo oculto para enviar o ID do utilizador #}
+                    <input type="hidden" name="utilizador_id" value="{{ utilizador.id }}">
+
+                    {# Nome do Utilizador #}
+                    <div>
+                        <label for="nome_utilizador" class="block text-sm font-medium text-gray-700">Nome do Utilizador</label>
+                        <input type="text" id="nome_utilizador" name="nome_utilizador" value="{{ utilizador.nome }}" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+
+                    {# Email do Utilizador #}
+                    <div>
+                        <label for="email_utilizador" class="block text-sm font-medium text-gray-700">Email do Utilizador</label>
+                        <input type="email" id="email_utilizador" name="email_utilizador" value="{{ utilizador.email }}" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+
+                    {# Campo para Nova Senha (Opcional) #}
+                    <div>
+                        <label for="nova_senha" class="block text-sm font-medium text-gray-700">Nova Senha (deixe em branco para não alterar)</label>
+                        <input type="password" id="nova_senha" name="nova_senha" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="************">
+                    </div>
+
+                     {# Exibir status Admin (não editável aqui) #}
+                    <div class="flex items-center">
+                        <span class="text-sm font-medium text-gray-700 mr-2">Status Admin:</span>
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ 'bg-green-100 text-green-800' if utilizador.is_admin else 'bg-red-100 text-red-800' }}">
+                            {{ 'Sim' if utilizador.is_admin else 'Não' }}
+                        </span>
+                        {# Nota: A edição do status admin deve ocorrer apenas na criação ou em uma tela específica para gerenciamento de utilizadores por conta, se necessário. #}
+                    </div>
+
+                {% else %}
+                    <p class="text-gray-600">Nenhum utilizador encontrado associado a esta conta.</p>
+                {% endif %}
+
+
+                {# Botão de Salvar #}
+                <div class="pt-6 border-t">
+                    <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus="ring-offset-2 focus:ring-indigo-500">
+                        <i class="fas fa-save mr-2"></i>
+                        Salvar Alterações
+                    </button>
+                </div>
+
+            </form>
+        {% else %}
+             {# Mensagem se o cliente não foi encontrado ou erro ao carregar #}
+             <p class="text-red-600">Não foi possível carregar os detalhes do cliente.</p>
+        {% endif %}
+
+    </div>
+</body>
+                          </html>
