@@ -10,11 +10,15 @@
             <h1 class="text-3xl font-bold text-gray-900">Acesso Restrito</h1>
             <p class="mt-2 text-gray-600">Por favor, insira a chave de acesso da plataforma.</p>
         </div>
-        {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}
-            {% for category, message in messages %}
-            <div class="p-4 rounded-md text-sm bg-red-100 text-red-700" role="alert">{{ message }}</div>
-            {% endfor %}{% endif %}{% endwith %}
-        <form class="space-y-6" action="{{ url_for('admin_bp.dashboard_gate') }}" method="POST">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="p-4 rounded-md text-sm {{ 'bg-red-100 text-red-700' if category == 'danger' else 'bg-green-100 text-green-700' }}" role="alert">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        <!-- O formulário agora aponta para a rota correta: admin_bp.admin_entry -->
+        <form class="space-y-6" action="{{ url_for('admin_bp.admin_entry') }}" method="POST">
             <div>
                 <label for="admin_key" class="sr-only">Chave de Administrador</label>
                 <input id="admin_key" name="admin_key" type="password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Chave de Acesso">
