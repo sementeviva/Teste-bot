@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8"><title>Acesso de Administrador</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-800 flex items-center justify-center min-h-screen">
+    <div class="w-full max-w-sm p-8 space-y-6 bg-white rounded-lg shadow-xl">
+        <div class="text-center">
+            <h1 class="text-3xl font-bold text-gray-900">Acesso Restrito</h1>
+            <p class="mt-2 text-gray-600">Por favor, insira a chave de acesso da plataforma.</p>
+        </div>
+        {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}
+            {% for category, message in messages %}
+            <div class="p-4 rounded-md text-sm bg-red-100 text-red-700" role="alert">{{ message }}</div>
+            {% endfor %}{% endif %}{% endwith %}
+        <form class="space-y-6" action="{{ url_for('admin_bp.dashboard_gate') }}" method="POST">
+            <div>
+                <label for="admin_key" class="sr-only">Chave de Administrador</label>
+                <input id="admin_key" name="admin_key" type="password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Chave de Acesso">
+            </div>
+            <button type="submit" class="w-full py-2 px-4 rounded-md text-white bg-gray-700 hover:bg-gray-900">Entrar</button>
+        </form>
+    </div>
+</body>
+</html>
+
