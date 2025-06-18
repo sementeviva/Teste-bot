@@ -9,11 +9,13 @@
     <div class="container mx-auto p-8">
         <div class="flex justify-between items-center mb-8">
             <h1 class="text-3xl font-bold text-gray-800">Painel do Administrador</h1>
-            <!-- O botão de logout agora aponta para a rota de logout do admin -->
+            <!-- Botão de logout para encerrar a sessão de admin -->
             <a href="{{ url_for('admin_bp.logout') }}" class="py-2 px-4 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">Encerrar Sessão Admin</a>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <!-- O link para o registo continua simples, pois a segurança é gerida pela sessão -->
+            
+            <!-- LINK SIMPLES E CORRETO -->
+            <!-- Leva para a rota de registo, que tem a sua própria segurança -->
             <a href="{{ url_for('auth.registro') }}" class="block p-6 bg-white rounded-lg shadow hover:shadow-lg">
                 <div class="flex items-center text-blue-600 mb-3">
                     <i class="fas fa-user-plus fa-2x"></i>
@@ -21,7 +23,7 @@
                 </div>
                 <p class="text-gray-600">Aceder à página segura para criar uma nova conta de loja na plataforma.</p>
             </a>
-            <!-- Outros cards de admin... -->
+            
         </div>
     </div>
 </body>
