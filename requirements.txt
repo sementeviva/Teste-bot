@@ -8,3 +8,5 @@ psycopg2
 openpyxl
 Flask-WTF
 sqlalchemy
+Flask-Login
+Werkzeug
