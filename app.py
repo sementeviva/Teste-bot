@@ -22,6 +22,7 @@ from routes.ver_produtos import ver_produtos_bp
 from routes.ver_conversas import ver_conversas_bp
 from routes.gerenciar_vendas import gerenciar_vendas_bp
 from routes.treinamento_bot import treinamento_bot_bp
+from routes.admin import admin_bp
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "uma_chave_secreta_muito_forte_e_dificil")
@@ -69,6 +70,7 @@ app.register_blueprint(ver_produtos_bp, url_prefix="/ver_produtos")
 app.register_blueprint(ver_conversas_bp, url_prefix="/ver_conversas")
 app.register_blueprint(gerenciar_vendas_bp, url_prefix='/gerenciar_vendas')
 app.register_blueprint(treinamento_bot_bp, url_prefix="/treinamento")
+app.register_blueprint(admin_bp, url_prefix="/admin")
 
 # Variáveis de ambiente
 openai_api_key = os.environ.get("OPENAI_API_KEY")
