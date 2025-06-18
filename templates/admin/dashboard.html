@@ -7,9 +7,13 @@
 </head>
 <body class="bg-gray-100">
     <div class="container mx-auto p-8">
-        <h1 class="text-3xl font-bold text-gray-800 mb-8">Painel do Administrador</h1>
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Painel do Administrador</h1>
+            <!-- O botão de logout agora aponta para a rota de logout do admin -->
+            <a href="{{ url_for('admin_bp.logout') }}" class="py-2 px-4 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">Encerrar Sessão Admin</a>
+        </div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <!-- O link agora é simples. A segurança estará na própria página de registo. -->
+            <!-- O link para o registo continua simples, pois a segurança é gerida pela sessão -->
             <a href="{{ url_for('auth.registro') }}" class="block p-6 bg-white rounded-lg shadow hover:shadow-lg">
                 <div class="flex items-center text-blue-600 mb-3">
                     <i class="fas fa-user-plus fa-2x"></i>
