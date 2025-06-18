@@ -10,7 +10,6 @@ auth_bp = Blueprint('auth', __name__, template_folder='../templates')
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
-    # A lógica de login continua a mesma
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
@@ -26,26 +25,28 @@ def login():
             flash('Email ou senha inválidos.', 'danger')
     return render_template('login.html')
 
-# --- CORREÇÃO APLICADA AQUI: Rota e função padronizadas para "registro" ---
 @auth_bp.route('/registro', methods=['GET', 'POST'])
-def registro(): # Nome da função corrigido
+def registro():
     secret_key = os.environ.get('REGISTRATION_SECRET_KEY')
     if not secret_key:
         flash('A funcionalidade de registo não está configurada pelo administrador.', 'danger')
         return redirect(url_for('auth.login'))
 
+    # Se o utilizador ainda não tiver acesso garantido na sessão...
     if not session.get('registration_access_granted'):
+        # ... e estiver a tentar submeter a senha de admin...
         if request.method == 'POST':
             admin_key_attempt = request.form.get('admin_key')
             if admin_key_attempt == secret_key:
                 session['registration_access_granted'] = True
                 flash('Acesso de administrador concedido. Pode agora registar uma nova loja.', 'success')
-                return redirect(url_for('auth.registro')) # url_for corrigido
+                return redirect(url_for('auth.registro'))
             else:
                 flash('Senha de administrador incorreta.', 'danger')
-        
+        # ... ou se for um acesso GET, mostramos a página de pedido de senha.
         return render_template('registro_gate.html')
 
+    # Se o acesso foi garantido, mostramos o formulário de registo completo.
     if request.method == 'POST':
         nome = request.form.get('nome')
         email = request.form.get('email')
@@ -55,7 +56,7 @@ def registro(): # Nome da função corrigido
 
         if password != password_confirm:
             flash('As senhas não coincidem. Por favor, tente novamente.', 'danger')
-            return redirect(url_for('auth.registro')) # url_for corrigido
+            return redirect(url_for('auth.registro'))
         
         conn = get_db_connection()
         try:
@@ -63,7 +64,7 @@ def registro(): # Nome da função corrigido
                 cur.execute("SELECT * FROM utilizadores WHERE email = %s", (email,))
                 if cur.fetchone():
                     flash('Este endereço de email já está registado.', 'warning')
-                    return redirect(url_for('auth.registro')) # url_for corrigido
+                    return redirect(url_for('auth.registro'))
                 
                 cur.execute("INSERT INTO contas (nome_empresa) VALUES (%s) RETURNING id", (nome_empresa,))
                 conta_id = cur.fetchone()['id']
@@ -71,8 +72,8 @@ def registro(): # Nome da função corrigido
                 cur.execute("INSERT INTO utilizadores (nome, email, password_hash, conta_id) VALUES (%s, %s, %s, %s)", (nome, email, password_hash, conta_id))
                 cur.execute("INSERT INTO configuracoes_bot (conta_id, nome_loja_publico) VALUES (%s, %s)", (conta_id, nome_empresa))
                 conn.commit()
-                flash('Nova conta criada com sucesso! Pode agora criar outra ou voltar para o login.', 'info')
-                return redirect(url_for('auth.registro')) # url_for corrigido
+                flash('Nova conta criada com sucesso!', 'info')
+                return redirect(url_for('auth.registro'))
         except Exception as e:
             if conn: conn.rollback()
             flash('Ocorreu um erro ao criar a conta.', 'danger')
