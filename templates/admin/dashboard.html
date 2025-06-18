@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8"><title>Painel de Administração</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-8">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Painel do Administrador</h1>
+            <a href="{{ url_for('admin_bp.logout') }}" class="py-2 px-4 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">Sair do Modo Admin</a>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Card para a página de registo -->
+            <a href="{{ url_for('auth.registro', token=registration_token) }}" class="block p-6 bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
+                <div class="flex items-center text-blue-600 mb-3">
+                    <i class="fas fa-user-plus fa-2x"></i>
+                    <h3 class="ml-4 text-xl font-semibold text-gray-900">Registar Novo Cliente</h3>
+                </div>
+                <p class="text-gray-600">Aceder à página segura para criar uma nova conta de loja na plataforma.</p>
+            </a>
+            <!-- Card para a página de visualização de clientes -->
+            <a href="{{ url_for('admin_bp.ver_clientes') }}" class="block p-6 bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
+                <div class="flex items-center text-green-600 mb-3">
+                    <i class="fas fa-store fa-2x"></i>
+                    <h3 class="ml-4 text-xl font-semibold text-gray-900">Ver Clientes</h3>
+                </div>
+                <p class="text-gray-600">Visualizar e gerir todas as contas de lojas ativas na sua plataforma.</p>
+            </a>
+        </div>
+    </div>
+</body>
+</html>
+
