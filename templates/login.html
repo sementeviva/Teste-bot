@@ -10,11 +10,10 @@
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
     <div class="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
         <div class="text-center">
-            <h1 class="text-3xl font-bold text-gray-900">Bem-vindo(a) de Volta!</h1>
+            <h1 class="text-3xl font-bold text-gray-900">Bem-vindo(a)</h1>
             <p class="mt-2 text-gray-600">Faça login para aceder ao seu painel.</p>
         </div>
 
-        <!-- Secção para exibir mensagens de feedback (ex: erro de senha) -->
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
@@ -43,11 +42,8 @@
             </div>
         </form>
 
-        <p class="text-sm text-center text-gray-600">
-            Ainda não tem uma conta?
-            <a href="{{ url_for('auth.registo') }}" class="font-medium text-indigo-600 hover:text-indigo-500">Registe-se aqui</a>
-        </p>
+        <!-- O link para registar uma nova conta foi REMOVIDO daqui. -->
+
     </div>
 </body>
 </html>
-
