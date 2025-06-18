@@ -81,7 +81,9 @@ def registo():
 
         conn.close()
 
-    return render_template('registo.html')
+    # --- CORREÇÃO APLICADA AQUI ---
+    # Agora procura pelo ficheiro com a grafia brasileira "registro.html"
+    return render_template('registro.html')
 
 
 @auth_bp.route('/logout')
@@ -90,4 +92,5 @@ def logout():
     logout_user()
     flash('Você saiu da sua conta.', 'info')
     return redirect(url_for('auth.login'))
+
 
