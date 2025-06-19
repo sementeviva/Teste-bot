@@ -18,45 +18,38 @@ def get_db_connection():
         port=os.environ.get('DB_PORT', 5432)
     )
 
-# --- FUNÇÃO ATUALIZADA (ANTERIORMENTE get_conta_id_from_sender) ---
-def get_conta_id_from_number(twilio_number):
+def get_conta_id_from_sid(account_sid):
     """
-    Descobre a qual 'conta' um número de WhatsApp da Twilio está associado.
-    Esta função é o pilar da lógica multi-inquilino.
-
-    Para esta função operar, é **essencial** que a sua tabela `contas`
-    possua uma coluna (ex: 'twilio_whatsapp_number') que armazene o número
-    de WhatsApp completo (formato 'whatsapp:+14155238886') vinculado
-    a cada conta de cliente.
+    Descobre a qual 'conta' um SID de subconta da Twilio pertence.
+    Esta é a implementação correta para uma arquitetura multi-inquilino.
 
     Args:
-        twilio_number (str): O número do destinatário da mensagem,
-                             fornecido pelo webhook da Twilio no campo 'To'.
+        account_sid (str): O AccountSid fornecido pelo webhook da Twilio,
+                           que pode ser o SID da conta principal ou de uma subconta.
 
     Returns:
-        int: O ID da conta correspondente, ou None se nenhuma conta for encontrada.
+        int: O ID da conta correspondente, ou None se não for encontrada.
     """
     conn = None
     conta_id = None
     try:
         conn = get_db_connection()
         with conn.cursor() as cur:
-            # A query busca na tabela 'contas' pelo número de telefone da Twilio.
-            # Substitua 'twilio_whatsapp_number' pelo nome real da coluna em seu banco de dados.
+            # A query busca na tabela 'contas' pelo SID da subconta.
             cur.execute(
                 """
                 SELECT id FROM contas
-                WHERE twilio_whatsapp_number = %s
+                WHERE twilio_subaccount_sid = %s
                 LIMIT 1
                 """,
-                (twilio_number,)
+                (account_sid,)
             )
             result = cur.fetchone()
             if result:
                 conta_id = result[0]
     except Exception as e:
-        print(f"Erro CRÍTICO em get_conta_id_from_number: {e}")
-        return None # Retorna None em caso de erro para evitar comportamento inesperado.
+        print(f"ERRO CRÍTICO em get_conta_id_from_sid: {e}")
+        return None
     finally:
         if conn:
             conn.close()
@@ -64,16 +57,13 @@ def get_conta_id_from_number(twilio_number):
     return conta_id
 
 
-# --- FUNÇÃO ATUALIZADA ---
 def salvar_conversa(conta_id, contato, mensagem_usuario, resposta_bot):
     """
-    Salva um registro da interação na tabela 'conversas', garantindo
-    que ele esteja sempre associado a uma 'conta' específica.
+    Salva um registro da interação na tabela 'conversas', associado a uma 'conta'.
     """
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
-            # A query já incluía a coluna 'conta_id', está correta.
             cursor.execute(
                 """
                 INSERT INTO conversas (conta_id, contato, mensagem_usuario, resposta_bot, data_hora)
@@ -88,33 +78,5 @@ def salvar_conversa(conta_id, contato, mensagem_usuario, resposta_bot):
         if conn:
             conn.close()
 
-# --- FUNÇÃO ATUALIZADA ---
-def get_last_bot_message(conta_id, contato):
-    """
-    Busca a última mensagem enviada pelo bot para um contato específico,
-    dentro do contexto de uma 'conta' específica.
-    """
-    conn = None
-    try:
-        conn = get_db_connection()
-        with conn.cursor() as cur:
-            # A query já filtrava por conta_id, está correta.
-            cur.execute(
-                """
-                SELECT resposta_bot FROM conversas
-                WHERE conta_id = %s AND contato = %s
-                ORDER BY data_hora DESC
-                LIMIT 1
-                """,
-                (conta_id, contato)
-            )
-            result = cur.fetchone()
-            return result[0] if result else None
-    except Exception as e:
-        print(f"Erro ao buscar a última mensagem do bot para conta_id {conta_id}: {e}")
-        return None
-    finally:
-        if conn:
-            conn.close()
-
+# ... (outras funções utilitárias do db_utils podem permanecer aqui) ...
 
