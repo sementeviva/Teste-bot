@@ -74,7 +74,7 @@ def send_reply_buttons(to_number, from_number, body, buttons, conta_id):
         client.messages.create(
             from_=from_number,
             to=to_number,
-            content_sid='HXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', # SID do seu Content Template para botões
+            content_sid='HXb97f4b4d8be13297d0b2fa0179fb7be2', # SID do seu Content Template para botões
             content_variables={
                 '1': body,
                 '2': 'footer_opcional', # Pode remover ou usar
@@ -113,7 +113,7 @@ def send_list_picker(to_number, from_number, body, button_text, sections, conta_
         client.messages.create(
             from_=from_number,
             to=to_number,
-            content_sid='HXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', # SID do seu Content Template para listas
+            content_sid='HX0a2aea598370c585df55f901c387b47f', # SID do seu Content Template para listas
             content_variables={
                 '1': 'interactive',
                 '2': json.dumps(interactive_data)
