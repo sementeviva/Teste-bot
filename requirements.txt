@@ -10,3 +10,4 @@ Flask-WTF
 sqlalchemy
 Flask-Login
 Werkzeug
+gunicorn
