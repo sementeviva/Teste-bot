@@ -7,7 +7,57 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
-        .tab-button.active { border-color: #4f46e5; color: #4f46e5; background-color: #eef2ff; }
+        .tab-button {
+            padding: 1rem 0.5rem;
+            border-bottom-width: 2px;
+            border-color: transparent;
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+            font-weight: 500;
+            color: #6b7280;
+        }
+        .tab-button:hover {
+            color: #4b5563;
+            border-color: #d1d5db;
+        }
+        .tab-button.active {
+            border-color: #4f46e5;
+            color: #4f46e5;
+            background-color: #eef2ff;
+        }
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #374151;
+        }
+        .form-input {
+            width: 100%;
+            border-radius: 0.375rem;
+            border-color: #d1d5db;
+            box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        }
+        .form-input:focus {
+            border-color: #4f46e5;
+            --tw-ring-color: #4f46e5;
+        }
+        .form-textarea {
+            width: 100%;
+            border-radius: 0.375rem;
+            border-color: #d1d5db;
+            box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        }
+        .form-textarea:focus {
+            border-color: #4f46e5;
+            --tw-ring-color: #4f46e5;
+        }
+        .form-checkbox {
+            height: 1rem;
+            width: 1rem;
+            border-radius: 0.25rem;
+            border-color: #d1d5db;
+            color: #4f46e5;
+        }
     </style>
 </head>
 <body class="bg-gray-100 p-4 md:p-8">
@@ -30,64 +80,109 @@
         <div class="bg-white rounded-lg shadow-md">
             <div class="border-b border-gray-200">
                 <nav class="-mb-px flex space-x-4 px-6" aria-label="Tabs">
-                    <button class="tab-button active" onclick="changeTab('config')">🚀 Config. Rápida</button>
-                    <button class="tab-button" onclick="changeTab('personalidade')">🎨 Personalidade</button>
-                    <button class="tab-button" onclick="changeTab('conhecimento')">📚 Conhecimento</button>
-                    <button class="tab-button" onclick="changeTab('diretrizes')">🧠 Diretrizes IA</button>
-                    <button class="tab-button" onclick="changeTab('guia')">💡 Guia de Ajuda</button>
+                    <button type="button" class="tab-button active" onclick="changeTab('config')">🚀 Config. Rápida</button>
+                    <button type="button" class="tab-button" onclick="changeTab('personalidade')">🎨 Personalidade</button>
+                    <button type="button" class="tab-button" onclick="changeTab('conhecimento')">📚 Conhecimento</button>
+                    <button type="button" class="tab-button" onclick="changeTab('diretrizes')">🧠 Diretrizes IA</button>
+                    <button type="button" class="tab-button" onclick="changeTab('guia')">💡 Guia</button>
                 </nav>
             </div>
 
             <form action="{{ url_for('treinamento_bot_bp.treinamento') }}" method="POST">
                 <div class="p-6">
-                    <!-- Conteúdo das Guias -->
-                    <div id="config" class="tab-content space-y-4">
-                        <!-- Conteúdo da guia Config. Rápida -->
+                    <!-- ===== GUIA CONFIGURAÇÃO RÁPIDA ===== -->
+                    <div id="config" class="tab-content space-y-6">
+                        <div>
+                            <label for="nome_loja_publico" class="form-label">Nome Público da Loja</label>
+                            <input type="text" id="nome_loja_publico" name="nome_loja_publico" value="{{ configuracoes.get('nome_loja_publico', '') }}" class="form-input" placeholder="Ex: Sapataria do Zé">
+                            <p class="text-xs text-gray-500 mt-1">Como o bot deve se referir à sua loja em conversas.</p>
+                        </div>
+                        <div>
+                            <label for="horario_funcionamento" class="form-label">Horário de Funcionamento</label>
+                            <textarea id="horario_funcionamento" name="horario_funcionamento" rows="2" class="form-textarea" placeholder="Ex: Segunda a Sexta, das 9h às 18h. Sábados, das 9h às 13h.">{{ configuracoes.get('horario_funcionamento', '') }}</textarea>
+                        </div>
+                         <div>
+                            <label for="endereco" class="form-label">Endereço Físico</label>
+                            <input type="text" id="endereco" name="endereco" value="{{ configuracoes.get('endereco', '') }}" class="form-input" placeholder="Ex: Rua das Flores, 123, Centro">
+                        </div>
+                        <div>
+                            <label for="link_google_maps" class="form-label">Link do Google Maps</label>
+                            <input type="url" id="link_google_maps" name="link_google_maps" value="{{ configuracoes.get('link_google_maps', '') }}" class="form-input" placeholder="https://maps.app.goo.gl/...">
+                        </div>
                     </div>
 
-                    <div id="personalidade" class="tab-content hidden space-y-4">
-                        <!-- Conteúdo da guia Personalidade -->
+                    <!-- ===== GUIA PERSONALIDADE ===== -->
+                    <div id="personalidade" class="tab-content hidden space-y-6">
+                        <div>
+                            <label for="nome_assistente" class="form-label">Nome do Assistente Virtual</label>
+                            <input type="text" id="nome_assistente" name="nome_assistente" value="{{ configuracoes.get('nome_assistente', '') }}" class="form-input" placeholder="Ex: Zézinho">
+                        </div>
+                        <div>
+                            <label for="saudacao_personalizada" class="form-label">Saudação Inicial</label>
+                            <textarea id="saudacao_personalizada" name="saudacao_personalizada" rows="3" class="form-textarea" placeholder="Ex: E aí, tudo joia? Sou o Zézinho, seu assistente virtual da Sapataria do Zé! O que você precisa?">{{ configuracoes.get('saudacao_personalizada', '') }}</textarea>
+                            <p class="text-xs text-gray-500 mt-1">Esta é a primeira mensagem que o bot envia quando o cliente diz "oi" ou "menu".</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                           <input type="checkbox" id="usar_emojis" name="usar_emojis" {% if configuracoes.get('usar_emojis') %}checked{% endif %} class="form-checkbox">
+                           <label for="usar_emojis" class="form-label !mb-0">Usar Emojis nas conversas</label>
+                        </div>
                     </div>
 
-                    <!-- ===== INÍCIO DA GUIA "BASE DE CONHECIMENTO" ATUALIZADA ===== -->
+                    <!-- ===== GUIA BASE DE CONHECIMENTO (FAQ) ===== -->
                     <div id="conhecimento" class="tab-content hidden space-y-4">
                         <h3 class="text-lg font-medium">Base de Conhecimento (FAQ)</h3>
-                        <p class="text-sm text-gray-500">Adicione aqui perguntas e respostas que o seu bot deve saber de cor.</p>
+                        <p class="text-sm text-gray-500">Adicione aqui perguntas e respostas que o seu bot deve saber de cor. Se a mensagem do cliente for idêntica à pergunta, o bot usará esta resposta exata.</p>
                         
-                        <!-- Container para os pares de Pergunta/Resposta -->
                         <div id="faq-container" class="space-y-4">
                             {% for item in configuracoes.faq_list %}
                             <div class="faq-pair p-4 border rounded-md bg-gray-50">
                                 <div class="flex justify-between items-center mb-2">
-                                    <label class="block text-sm font-medium text-gray-700">Pergunta do Cliente</label>
-                                    <button type="button" onclick="removeFaqPair(this)" class="text-gray-400 hover:text-red-600">&times;</button>
+                                    <label class="block text-sm font-medium text-gray-700">Pergunta do Cliente (exata)</label>
+                                    <button type="button" onclick="removeFaqPair(this)" class="text-gray-400 hover:text-red-600 font-bold text-lg">&times;</button>
                                 </div>
-                                <input type="text" name="faq_questions" class="block w-full rounded-md border-gray-300 shadow-sm" value="{{ item.question }}">
+                                <input type="text" name="faq_questions" class="form-input" value="{{ item.question }}">
                                 
                                 <label class="block text-sm font-medium text-gray-700 mt-2">Resposta do Assistente</label>
-                                <textarea name="faq_answers" rows="2" class="block w-full rounded-md border-gray-300 shadow-sm">{{ item.answer }}</textarea>
+                                <textarea name="faq_answers" rows="2" class="form-textarea">{{ item.answer }}</textarea>
                             </div>
                             {% endfor %}
                         </div>
 
-                        <!-- Botão para adicionar um novo par -->
                         <button type="button" onclick="addFaqPair()" class="mt-4 inline-flex items-center px-3 py-2 border border-dashed border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                             <i class="fas fa-plus mr-2"></i> Adicionar Pergunta
                         </button>
                     </div>
-                    <!-- ===== FIM DA GUIA "BASE DE CONHECIMENTO" ===== -->
 
-                    <div id="diretrizes" class="tab-content hidden space-y-4">
-                         <!-- Conteúdo da guia Diretrizes -->
+                    <!-- ===== GUIA DIRETRIZES DA IA ===== -->
+                    <div id="diretrizes" class="tab-content hidden space-y-6">
+                         <div>
+                            <label for="diretriz_principal_prompt" class="form-label">Diretriz Principal da IA (Personalidade)</label>
+                            <textarea id="diretriz_principal_prompt" name="diretriz_principal_prompt" rows="4" class="form-textarea" placeholder="Ex: Aja como um vendedor de sapatos jovem e descolado. Use gírias como 'top', 'show de bola'. Seja sempre otimista.">{{ configuracoes.get('diretriz_principal_prompt', '') }}</textarea>
+                            <p class="text-xs text-gray-500 mt-1">Instruções de alto nível para a OpenAI sobre como o bot deve se comportar.</p>
+                        </div>
+                        <div>
+                            <label for="conhecimento_especifico" class="form-label">Conhecimento Específico (Contexto Adicional)</label>
+                            <textarea id="conhecimento_especifico" name="conhecimento_especifico" rows="5" class="form-textarea" placeholder="Ex: Nossos sapatos de couro têm garantia de 1 ano. Não vendemos sapatos infantis. A política de troca é de 30 dias com a nota fiscal.">{{ configuracoes.get('conhecimento_especifico', '') }}</textarea>
+                            <p class="text-xs text-gray-500 mt-1">Forneça fatos e regras importantes sobre seu negócio que a IA deve saber.</p>
+                        </div>
                     </div>
                     
-                    <div id="guia" class="tab-content hidden prose">
-                        <!-- Conteúdo da guia Ajuda -->
+                    <!-- ===== GUIA DE AJUDA ===== -->
+                    <div id="guia" class="tab-content hidden prose max-w-none">
+                        <h3>Como funciona o treinamento?</h3>
+                        <p>O seu assistente virtual responde aos clientes em três níveis de prioridade:</p>
+                        <ol>
+                            <li><strong>Comandos Diretos:</strong> Mensagens como <code>menu</code>, <code>carrinho</code> ou <code>add 123 1</code> sempre terão prioridade e executarão uma ação específica.</li>
+                            <li><strong>Base de Conhecimento (FAQ):</strong> Se a mensagem do cliente for <strong>exatamente igual</strong> a uma pergunta que você cadastrou na guia "Conhecimento", o bot usará a resposta que você definiu. Isso é ideal para perguntas comuns e garante respostas rápidas e precisas.</li>
+                            <li><strong>Inteligência Artificial (OpenAI):</strong> Se a mensagem não for um comando nem uma pergunta do FAQ, ela será enviada para a IA da OpenAI. A IA usará todas as informações que você preencheu neste painel (personalidade, dados da loja, contexto, lista de produtos) para formular a melhor resposta possível.</li>
+                        </ol>
+                        <p class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md"><strong>Dica:</strong> Quanto mais completo for o treinamento, mais inteligente e útil será o seu assistente!</p>
                     </div>
                 </div>
                 
-                <div class="bg-gray-50 px-6 py-3 text-right">
+                <div class="bg-gray-50 px-6 py-4 text-right border-t">
                     <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                        <i class="fas fa-save mr-2"></i>
                         Salvar Todas as Alterações
                     </button>
                 </div>
@@ -96,41 +191,35 @@
     </div>
 
     <script>
-        function changeTab(tabId) { /* ... (a função de troca de guias continua igual) ... */ }
-        
-        // --- NOVO JAVASCRIPT PARA O FAQ DINÂMICO ---
+        function changeTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+            document.querySelectorAll('.tab-button').forEach(button => button.classList.remove('active'));
+            document.getElementById(tabId).classList.remove('hidden');
+            document.querySelector(`button[onclick="changeTab('${tabId}')"]`).classList.add('active');
+        }
         
         function addFaqPair() {
             const container = document.getElementById('faq-container');
             const newPair = document.createElement('div');
-            newPair.className = 'faq-pair p-4 border rounded-md bg-gray-50 animate-fade-in'; // Adiciona uma animação
+            newPair.className = 'faq-pair p-4 border rounded-md bg-gray-50';
             newPair.innerHTML = `
                 <div class="flex justify-between items-center mb-2">
-                    <label class="block text-sm font-medium text-gray-700">Pergunta do Cliente</label>
+                    <label class="block text-sm font-medium text-gray-700">Pergunta do Cliente (exata)</label>
                     <button type="button" onclick="removeFaqPair(this)" class="text-gray-400 hover:text-red-600 font-bold text-lg">&times;</button>
                 </div>
-                <input type="text" name="faq_questions" class="block w-full rounded-md border-gray-300 shadow-sm" placeholder="Ex: Quais as formas de pagamento?">
+                <input type="text" name="faq_questions" class="form-input" placeholder="Ex: Quais as formas de pagamento?">
                 
                 <label class="block text-sm font-medium text-gray-700 mt-2">Resposta do Assistente</label>
-                <textarea name="faq_answers" rows="2" class="block w-full rounded-md border-gray-300 shadow-sm" placeholder="Ex: Aceitamos Pix, cartão de crédito e débito."></textarea>
+                <textarea name="faq_answers" rows="2" class="form-textarea" placeholder="Ex: Aceitamos Pix, cartão de crédito e débito."></textarea>
             `;
             container.appendChild(newPair);
         }
 
         function removeFaqPair(button) {
-            // Encontra o elemento 'faq-pair' mais próximo e remove-o
             button.closest('.faq-pair').remove();
         }
-
-        // --- FIM DO NOVO JAVASCRIPT ---
-
-        // O resto do script para as guias continua igual...
-        const tabs = document.querySelectorAll('.tab-content');
-        const tabButtons = document.querySelectorAll('.tab-button');
-        tabButtons.forEach(button => {
-            button.classList.add('py-4', 'px-2', 'border-b-2', 'border-transparent', 'text-sm', 'font-medium', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
-        });
     </script>
 </body>
 </html>
 
+                            
