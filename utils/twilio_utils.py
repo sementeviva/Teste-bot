@@ -40,65 +40,46 @@ def send_text(to_number, from_number, body, conta_id):
         print(f"Erro ao enviar mensagem de texto para conta {conta_id}: {e}")
 
 def send_reply_buttons(to_number, from_number, body, buttons, conta_id):
-    """Envia uma mensagem com até 3 botões de resposta rápida (Quick Reply)."""
+    """Envia uma mensagem com botões de resposta rápida (Quick Reply)."""
     client = _get_twilio_client_for_account(conta_id)
     
-    # ATENÇÃO: Substitua este SID pelo SID do seu template 'assistente_botoes'
-    template_sid = os.environ.get("TWILIO_BUTTON_TEMPLATE_SID", "HXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
-    if template_sid == "HXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX":
-        print("AVISO: O SID do template de botões não foi configurado. A mensagem interativa irá falhar.")
+    template_sid = os.environ.get("TWILIO_BUTTON_TEMPLATE_SID")
+    if not template_sid:
+        print("ERRO: A variável de ambiente TWILIO_BUTTON_TEMPLATE_SID não está configurada.")
+        return
 
-    # A API espera um objeto JSON com as ações dos botões
     actions = [{"type": "reply", "reply": btn} for btn in buttons[:3]]
     
     try:
         client.messages.create(
-            from_=from_number,
-            to=to_number,
+            from_=from_number, to=to_number,
             content_sid=template_sid,
-            content_variables={
-                '1': body,
-                '2': json.dumps(actions)
-            }
+            content_variables={'1': body, '2': json.dumps(actions)}
         )
     except Exception as e:
         print(f"ERRO ao enviar botões de resposta para conta {conta_id}: {e}")
-        fallback_text = body + "\n\n"
-        for i, btn in enumerate(buttons):
-            fallback_text += f"*{i+1}* - {btn['title']}\n"
-        fallback_text += "\n_Responda com o número da opção desejada._"
+        fallback_text = f"{body}\n\n" + "\n".join([f"*{i+1}* - {btn['title']}" for i, btn in enumerate(buttons)]) + "\n\n_Responda com o número da opção desejada._"
         send_text(to_number, from_number, fallback_text, conta_id)
 
 def send_list_picker(to_number, from_number, body, button_text, sections, conta_id):
     """Envia uma mensagem com uma lista de opções (List Picker)."""
     client = _get_twilio_client_for_account(conta_id)
 
-    # ATENÇÃO: Substitua este SID pelo SID do seu template 'assistente_lista'
-    template_sid = os.environ.get("TWILIO_LIST_TEMPLATE_SID", "HXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
-    if template_sid == "HXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX":
-        print("AVISO: O SID do template de lista não foi configurado. A mensagem interativa irá falhar.")
+    template_sid = os.environ.get("TWILIO_LIST_TEMPLATE_SID")
+    if not template_sid:
+        print("ERRO: A variável de ambiente TWILIO_LIST_TEMPLATE_SID não está configurada.")
+        return
 
-    # Para Listas, toda a estrutura interativa é enviada numa única variável
-    interactive_data = {
-        "type": "list",
-        "body": {"text": body},
-        "action": {"button": button_text, "sections": sections}
-    }
+    interactive_data = {"type": "list", "body": {"text": body}, "action": {"button": button_text, "sections": sections}}
     
     try:
         client.messages.create(
-            from_=from_number,
-            to=to_number,
+            from_=from_number, to=to_number,
             content_sid=template_sid,
             content_variables={'1': json.dumps(interactive_data)}
         )
     except Exception as e:
         print(f"ERRO ao enviar lista de opções para conta {conta_id}: {e}")
-        fallback_text = body + "\n\n"
-        for section in sections:
-            fallback_text += f"*{section['title']}*\n"
-            for row in section['rows']:
-                fallback_text += f"- {row['title']}\n"
+        fallback_text = f"{body}\n\n" + "\n".join([f"*{sec['title']}*\n" + "\n".join([f"- {row['title']}" for row in sec['rows']]) for sec in sections])
         send_text(to_number, from_number, fallback_text, conta_id)
-
 
