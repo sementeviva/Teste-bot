@@ -4,13 +4,10 @@ import psycopg2
 import os
 from datetime import datetime
 from psycopg2.extras import RealDictCursor
-import json # Importa a biblioteca JSON
+import json
 
 def get_db_connection():
-    """
-    Estabelece e retorna uma conexão com o banco de dados PostgreSQL
-    usando as variáveis de ambiente para as credenciais.
-    """
+    """Estabelece e retorna uma conexão com o banco de dados PostgreSQL."""
     return psycopg2.connect(
         host=os.environ.get('DB_HOST'),
         database=os.environ.get('DB_NAME'),
@@ -20,41 +17,22 @@ def get_db_connection():
     )
 
 def get_conta_id_from_sid(account_sid):
-    """
-    Descobre a qual 'conta' um SID de subconta da Twilio pertence.
-    """
+    """Descobre a qual 'conta' um SID de subconta da Twilio pertence."""
     conn = None
-    conta_id = None
     try:
         conn = get_db_connection()
         with conn.cursor() as cur:
-            cur.execute(
-                "SELECT id FROM contas WHERE twilio_subaccount_sid = %s LIMIT 1",
-                (account_sid,)
-            )
+            cur.execute("SELECT id FROM contas WHERE twilio_subaccount_sid = %s LIMIT 1", (account_sid,))
             result = cur.fetchone()
-            if result:
-                conta_id = result[0]
+            return result[0] if result else None
     except Exception as e:
         print(f"ERRO CRÍTICO em get_conta_id_from_sid: {e}")
         return None
     finally:
-        if conn:
-            conn.close()
-    return conta_id
+        if conn: conn.close()
 
-# --- NOVA FUNÇÃO ---
 def get_bot_config(conta_id):
-    """
-    Busca as configurações do bot para uma conta específica.
-
-    Args:
-        conta_id (int): O ID da conta para a qual buscar as configurações.
-
-    Returns:
-        dict: Um dicionário com as configurações do bot. Retorna um dicionário
-              com valores padrão se nenhuma configuração for encontrada.
-    """
+    """Busca as configurações do bot para uma conta específica."""
     conn = None
     try:
         conn = get_db_connection()
@@ -62,16 +40,13 @@ def get_bot_config(conta_id):
             cur.execute("SELECT * FROM configuracoes_bot WHERE conta_id = %s", (conta_id,))
             config = cur.fetchone()
 
-        # Se encontrou configurações, processa o FAQ
         if config:
-            # Tenta decodificar o JSON do FAQ. Se falhar, usa uma lista vazia.
             try:
-                # O campo faq_conhecimento pode ser uma string JSON ou já um dict/list
-                # dependendo do driver do banco. `json.loads` garante que seja uma lista Python.
-                if isinstance(config.get('faq_conhecimento'), str):
-                     config['faq_list'] = json.loads(config['faq_conhecimento'])
-                elif isinstance(config.get('faq_conhecimento'), list):
-                     config['faq_list'] = config['faq_conhecimento']
+                faq_data = config.get('faq_conhecimento')
+                if isinstance(faq_data, str):
+                     config['faq_list'] = json.loads(faq_data)
+                elif isinstance(faq_data, list):
+                     config['faq_list'] = faq_data
                 else:
                      config['faq_list'] = []
             except (json.JSONDecodeError, TypeError):
@@ -83,25 +58,18 @@ def get_bot_config(conta_id):
     finally:
         if conn: conn.close()
 
-    # Retorna um dicionário de fallback com valores padrão se nada for encontrado ou der erro
+    # Retorna um dicionário de fallback com valores padrão
     return {
         'saudacao_personalizada': 'Olá! Bem-vindo(a)! Como posso ajudar?',
         'faq_list': [],
         'nome_assistente': 'Assistente',
-        'nome_loja_publico': 'nossa loja',
-        'horario_funcionamento': 'não informado',
-        'endereco': 'não informado',
-        'diretriz_principal_prompt': 'Seja um assistente de vendas prestativo e amigável.',
-        'conhecimento_especifico': ''
     }
 
-
 def salvar_conversa(conta_id, contato, mensagem_usuario, resposta_bot):
-    """
-    Salva um registro da interação na tabela 'conversas', associado a uma 'conta'.
-    """
-    conn = get_db_connection()
+    """Salva um registro da interação na tabela 'conversas'."""
+    conn = None
     try:
+        conn = get_db_connection()
         with conn.cursor() as cursor:
             cursor.execute(
                 """
@@ -114,6 +82,34 @@ def salvar_conversa(conta_id, contato, mensagem_usuario, resposta_bot):
     except Exception as e:
         print(f"Erro ao salvar conversa para conta_id {conta_id}: {e}")
     finally:
-        if conn:
-            conn.close()
+        if conn: conn.close()
+
+# --- NOVA FUNÇÃO ADICIONADA ---
+def get_last_bot_message(conta_id, contato):
+    """
+    Busca a última mensagem enviada pelo bot para um contato específico,
+    dentro do contexto de uma 'conta' específica.
+    """
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            # A query agora filtra por conta_id e contato
+            cur.execute(
+                """
+                SELECT resposta_bot FROM conversas
+                WHERE conta_id = %s AND contato = %s
+                ORDER BY data_hora DESC
+                LIMIT 1
+                """,
+                (conta_id, contato)
+            )
+            result = cur.fetchone()
+            return result[0] if result else None
+    except Exception as e:
+        print(f"Erro ao buscar a última mensagem do bot para conta_id {conta_id}: {e}")
+        return None
+    finally:
+        if conn: conn.close()
+
 
