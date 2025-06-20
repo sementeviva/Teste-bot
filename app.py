@@ -3,7 +3,7 @@
 # --- IMPORTS ---
 import os
 from flask import Flask, request, render_template
-from flask_login import LoginManager, login_required, current_user
+from flask_login import LoginManager, login_required
 from psycopg2.extras import RealDictCursor
 
 # --- NOSSOS IMPORTS ---
@@ -17,7 +17,7 @@ from routes.ver_produtos import ver_produtos_bp
 from routes.ver_conversas import ver_conversas_bp
 from routes.gerenciar_vendas import gerenciar_vendas_bp
 
-from utils.db_utils import get_db_connection, get_conta_id_from_sid, get_bot_config
+from utils.db_utils import get_db_connection, get_conta_id_from_sid, get_bot_config, get_last_bot_message
 from utils.fluxo_vendas import adicionar_ao_carrinho
 import utils.view_handlers as views
 from utils.twilio_utils import send_text
@@ -26,11 +26,12 @@ from utils.twilio_utils import send_text
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "uma_chave_secreta_muito_forte_e_dificil")
 
-# --- LOGIN MANAGER (LÓGICA RESTAURADA) ---
+# --- LOGIN MANAGER (LÓGICA CORRIGIDA E COMPLETA) ---
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'auth.login'
 login_manager.login_message = "Por favor, faça login para aceder a esta página."
+login_manager.login_message_category = "info"
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -42,15 +43,10 @@ def load_user(user_id):
     try:
         conn = get_db_connection()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            # Busca todos os dados necessários para recriar o objeto User
-            cur.execute(
-                "SELECT id, nome, email, conta_id, is_admin FROM utilizadores WHERE id = %s",
-                (user_id,)
-            )
+            cur.execute("SELECT id, nome, email, conta_id, is_admin FROM utilizadores WHERE id = %s", (user_id,))
             user_data = cur.fetchone()
         
         if user_data:
-            # Recria o objeto User com os dados do banco
             return User(
                 id=user_data['id'],
                 nome=user_data['nome'],
@@ -96,6 +92,21 @@ def whatsapp_webhook():
     list_reply_id = form_data.get("List-Reply-Id")
     user_message_body = form_data.get("Body", "").strip()
 
+    # --- LÓGICA DE FALLBACK NUMÉRICO ---
+    if user_message_body.isdigit():
+        last_message = get_last_bot_message(conta_id, sender_number)
+        
+        if last_message and "Responda com o número" in last_message:
+            try:
+                option_index = int(user_message_body) - 1
+                # O fallback do menu inicial tem 3 opções
+                options = ['view_categories', 'talk_to_human', 'view_faq']
+                if 0 <= option_index < len(options):
+                    button_payload = options[option_index]
+                    print(f"INFO: Fallback numérico acionado. Mapeando '{user_message_body}' para '{button_payload}'.")
+            except (ValueError, IndexError):
+                pass
+
     # --- CONTROLADOR DE FLUXO ---
     if button_payload:
         if button_payload == 'view_categories':
@@ -129,6 +140,4 @@ def whatsapp_webhook():
 def home():
     return render_template("index.html")
 
-# O Gunicorn assume a responsabilidade de correr a app, por isso não precisamos
-# do bloco if __name__ == '__main__': para produção.
 
