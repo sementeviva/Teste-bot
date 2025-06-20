@@ -13,26 +13,18 @@ ver_conversas_bp = Blueprint('ver_conversas_bp', __name__, template_folder='../t
 @ver_conversas_bp.route('/', methods=['GET'])
 @login_required
 def listar_contatos():
-    """
-    Lista os contactos e o seu status para a conta do utilizador logado.
-    Esta função foi restaurada para funcionar corretamente.
-    """
+    """Lista os contactos e o seu status para a conta do utilizador logado."""
     conta_id_logada = current_user.conta_id
     conn = get_db_connection()
     contatos_resumo = []
     
     query = """
-        SELECT
-            c.contato,
-            COUNT(c.id) as total_mensagens,
-            MAX(c.data_hora) as ultima_mensagem,
-            SUM(CASE WHEN c.lido = FALSE THEN 1 ELSE 0 END) as nao_lidas,
-            v.status_atendimento
+        SELECT c.contato, COUNT(c.id) as total_mensagens, MAX(c.data_hora) as ultima_mensagem,
+               SUM(CASE WHEN c.lido = FALSE THEN 1 ELSE 0 END) as nao_lidas, v.status_atendimento
         FROM conversas c
         LEFT JOIN vendas v ON c.contato = v.cliente_id AND v.status = 'aberto' AND v.conta_id = %s
         WHERE c.conta_id = %s
-        GROUP BY c.contato, v.status_atendimento
-        ORDER BY ultima_mensagem DESC;
+        GROUP BY c.contato, v.status_atendimento ORDER BY ultima_mensagem DESC;
     """
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -40,7 +32,6 @@ def listar_contatos():
             contatos_resumo = cur.fetchall()
     except Exception as e:
         print(f"Erro ao buscar resumo de contactos para conta {conta_id_logada}: {e}")
-        contatos_resumo = []
     finally:
         if conn: conn.close()
         
@@ -59,15 +50,12 @@ def get_historico_contato(contato):
             cur.execute(query, (conta_id_logada, contato))
             historico = cur.fetchall()
             conn.commit()
-
             for mensagem in historico:
                 if mensagem.get('data_hora'):
                     mensagem['data_hora'] = mensagem['data_hora'].isoformat()
-            
             return jsonify(historico)
     except Exception as e:
         if conn: conn.rollback()
-        print(f"ERRO em /api/conversas: {e}")
         return jsonify({'error': str(e)}), 500
     finally:
         if conn: conn.close()
@@ -99,11 +87,9 @@ def responder_cliente():
             cur.execute("UPDATE vendas SET modo_atendimento = 'manual' WHERE conta_id = %s AND cliente_id = %s AND status = 'aberto'", (conta_id_logada, contato))
             conn.commit()
         conn.close()
-        
         return jsonify({'success': True})
     except Exception as e:
-        print(f"ERRO em /api/responder: {e}")
         return jsonify({'error': str(e)}), 500
 
-# As outras rotas da API (status_atendimento, modo_atendimento) podem ser adicionadas aqui se necessário
 
+                                     
