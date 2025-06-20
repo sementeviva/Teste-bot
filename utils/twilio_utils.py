@@ -40,21 +40,23 @@ def send_text(to_number, from_number, body, conta_id):
         print(f"Erro ao enviar mensagem de texto para conta {conta_id}: {e}")
 
 def send_reply_buttons(to_number, from_number, body, buttons, conta_id):
-    """Envia uma mensagem com botões de resposta rápida (Quick Reply)."""
+    """
+    Envia uma mensagem com botões de resposta rápida (Quick Reply).
+    CORRIGIDO: Agora envia apenas a variável do corpo, como o template espera.
+    """
     client = _get_twilio_client_for_account(conta_id)
-    
     template_sid = os.environ.get("TWILIO_BUTTON_TEMPLATE_SID")
     if not template_sid:
         print("ERRO: A variável de ambiente TWILIO_BUTTON_TEMPLATE_SID não está configurada.")
         return
 
-    actions = [{"type": "reply", "reply": btn} for btn in buttons[:3]]
-    
     try:
+        print(f"INFO: Enviando Quick Reply para {to_number} com o corpo: '{body}'")
         client.messages.create(
-            from_=from_number, to=to_number,
+            from_=from_number,
+            to=to_number,
             content_sid=template_sid,
-            content_variables={'1': body, '2': json.dumps(actions)}
+            content_variables={'1': body} # A única variável que o template precisa
         )
     except Exception as e:
         print(f"ERRO ao enviar botões de resposta para conta {conta_id}: {e}")
@@ -64,7 +66,6 @@ def send_reply_buttons(to_number, from_number, body, buttons, conta_id):
 def send_list_picker(to_number, from_number, body, button_text, sections, conta_id):
     """Envia uma mensagem com uma lista de opções (List Picker)."""
     client = _get_twilio_client_for_account(conta_id)
-
     template_sid = os.environ.get("TWILIO_LIST_TEMPLATE_SID")
     if not template_sid:
         print("ERRO: A variável de ambiente TWILIO_LIST_TEMPLATE_SID não está configurada.")
