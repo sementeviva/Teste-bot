@@ -26,7 +26,7 @@ from utils.twilio_utils import send_text
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "uma_chave_secreta_muito_forte_e_dificil")
 
-# --- LOGIN MANAGER (LÓGICA CORRIGIDA E COMPLETA) ---
+# --- LOGIN MANAGER (LÓGICA COMPLETA) ---
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'auth.login'
@@ -35,10 +35,7 @@ login_manager.login_message_category = "info"
 
 @login_manager.user_loader
 def load_user(user_id):
-    """
-    Esta função é usada pelo Flask-Login para recarregar o objeto do utilizador
-    a partir do ID do utilizador armazenado na sessão.
-    """
+    """Carrega o utilizador da sessão."""
     conn = None
     try:
         conn = get_db_connection()
@@ -80,34 +77,28 @@ def whatsapp_webhook():
     to_number = form_data.get("To")
     account_sid = form_data.get("AccountSid")
     
-    if not all([sender_number, to_number, account_sid]):
-        return "OK", 200
+    if not all([sender_number, to_number, account_sid]): return "OK", 200
 
     conta_id = get_conta_id_from_sid(account_sid)
-    if not conta_id:
-        print(f"ERRO CRÍTICO: Nenhuma conta para o SID {account_sid}")
-        return "OK", 200
+    if not conta_id: return "OK", 200
 
     button_payload = form_data.get("ButtonPayload")
     list_reply_id = form_data.get("List-Reply-Id")
     user_message_body = form_data.get("Body", "").strip()
 
-    # --- LÓGICA DE FALLBACK NUMÉRICO ---
-    if user_message_body.isdigit():
+    # Lógica de fallback para respostas numéricas
+    if user_message_body and not button_payload and not list_reply_id and user_message_body.isdigit():
         last_message = get_last_bot_message(conta_id, sender_number)
-        
         if last_message and "Responda com o número" in last_message:
             try:
                 option_index = int(user_message_body) - 1
-                # O fallback do menu inicial tem 3 opções
-                options = ['view_categories', 'talk_to_human', 'view_faq']
-                if 0 <= option_index < len(options):
-                    button_payload = options[option_index]
-                    print(f"INFO: Fallback numérico acionado. Mapeando '{user_message_body}' para '{button_payload}'.")
-            except (ValueError, IndexError):
-                pass
+                if "Ver Produtos" in last_message:
+                    options = ['view_categories', 'talk_to_human', 'view_faq']
+                    if 0 <= option_index < len(options):
+                        button_payload = options[option_index] # Simula o clique
+            except (ValueError, IndexError): pass
 
-    # --- CONTROLADOR DE FLUXO ---
+    # Controlador de Fluxo
     if button_payload:
         if button_payload == 'view_categories':
             views.send_categories_view(conta_id, sender_number, to_number)
@@ -127,9 +118,9 @@ def whatsapp_webhook():
         greetings = ["oi", "olá", "ola", "menu", "começar", "bom dia", "boa tarde", "boa noite"]
         if user_message_body.lower() in greetings:
             views.send_initial_view(conta_id, sender_number, to_number)
-        else:
+        elif not user_message_body.isdigit(): # Evita responder duas vezes ao fallback numérico
             bot_config = get_bot_config(conta_id)
-            fallback_text = bot_config.get('fallback_message', "Desculpe, não entendi. Use os botões para navegar ou digite 'Menu' para recomeçar.")
+            fallback_text = "Desculpe, não entendi. Use os botões para navegar ou digite 'Menu' para recomeçar."
             send_text(sender_number, to_number, fallback_text, conta_id)
             
     return "OK", 200
@@ -140,4 +131,4 @@ def whatsapp_webhook():
 def home():
     return render_template("index.html")
 
-
+                
