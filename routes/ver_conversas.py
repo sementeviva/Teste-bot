@@ -51,7 +51,6 @@ def get_historico_contato(contato):
             historico = cur.fetchall()
             conn.commit()
             
-            # CORREÇÃO: Converte a data/hora para uma string que o JavaScript entende
             for mensagem in historico:
                 if mensagem.get('data_hora'):
                     mensagem['data_hora'] = mensagem['data_hora'].isoformat()
@@ -59,6 +58,7 @@ def get_historico_contato(contato):
             return jsonify(historico)
     except Exception as e:
         if conn: conn.rollback()
+        print(f"ERRO CRÍTICO em get_historico_contato para {contato}: {e}")
         return jsonify({'error': str(e)}), 500
     finally:
         if conn: conn.close()
@@ -76,6 +76,8 @@ def responder_cliente():
         return jsonify({'error': 'Contato e mensagem são obrigatórios'}), 400
 
     try:
+        # Busca o número de telefone da Twilio para esta conta específica
+        # (Esta é uma melhoria para o futuro, por agora usamos o número principal)
         from_number = os.environ.get('TWILIO_WHATSAPP_NUMBER')
         if not from_number:
             raise ValueError("A variável de ambiente TWILIO_WHATSAPP_NUMBER não está configurada.")
@@ -85,11 +87,6 @@ def responder_cliente():
         resposta_formatada = f"[ATENDENTE]: {mensagem}"
         salvar_conversa(conta_id_logada, contato, "--- RESPOSTA MANUAL DO PAINEL ---", resposta_formatada)
         
-        conn = get_db_connection()
-        with conn.cursor() as cur:
-            cur.execute("UPDATE vendas SET modo_atendimento = 'manual' WHERE conta_id = %s AND cliente_id = %s AND status = 'aberto'", (conta_id_logada, contato))
-            conn.commit()
-        conn.close()
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
